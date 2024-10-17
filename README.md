@@ -1,2 +1,2 @@
-This repository includes a description of the Data and Methods underpinning the trends outlined in the paper titled "Impact of the NHS England GP Direct Access Scheme on GP cancer investigation".
+This repository includes - in the file named "appendix.pdf" - the description of the Data and Methods underpinning the trends outlined in the paper titled "Has NHS England’s announcement on direct access investigations led to increased use of radiology tests?" The repository also includes the data and code to replicate tables and figures.
 For any information, please email the corresponding author Igor Francetic at igor.francetic@manchester.ac.uk.
