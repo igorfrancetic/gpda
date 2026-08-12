@@ -38,10 +38,16 @@ Reproduce with `python review/did_analysis.py`; full output in
    references, figures and tables. The abstract limit (200 words) and the
    "Advances in knowledge" requirement are already met; OUP's site was not
    reachable to verify the rest.
-2. **Re-run the models in Stata** if you want the published numbers to come from
-   your own toolchain. `review/robustness.do` covers the earlier practice-level
-   analyses; the difference-in-differences here is a straightforward
-   `reghdfe ln_events post##gp, absorb(trust_source month) cluster(trust)`.
+2. **Re-run the models in Stata.** `stata/did_pipeline.do` is the full pipeline
+   for this manuscript — panel build, main DiD under both baselines, by-modality,
+   waiting times including the pooled estimate, placebo, differential trend,
+   event study and table export. It has **not been executed** (no Stata in the
+   environment it was written in), but its data-build steps were verified
+   line-by-line against the Python and produce an identical panel: 9,984
+   trust-months, 160 trusts, and stacked analysis samples of 8,214 and 14,617.
+   Those checks are `assert`ed at the top of the do-file, and every section
+   carries the expected estimate as a comment, so a divergence will be obvious.
+   `review/robustness.do` covers the earlier practice-level analyses.
 3. **Complete the STROBE checklist** and attach it as supplementary material —
    the Methods section already states that it was followed.
 4. **Decide the relationship to the earlier practice-level paper.** This
