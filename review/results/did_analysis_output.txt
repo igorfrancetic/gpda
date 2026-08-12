@@ -1,72 +1,86 @@
-==================================================================================
+========================================================================================
 SAMPLE
-==================================================================================
-  trusts 143   months 20   2022-04-01 to 2023-11-01  (7 pre-announcement, 13 post)
-  GP share of covered-modality cancer-detection events: 26.9%
-  GP share of chest x-ray events: 25.9%
+========================================================================================
+  trusts 160   months 68   2018-04-01 to 2023-11-01
+  GP share of covered-modality cancer-detection events: 25.9%
+  April 2021 baseline (post-COVID recovery): 19 pre-announcement months
+  April 2018 baseline, pandemic year dropped: 42 pre-announcement months
 
-==================================================================================
+========================================================================================
 1. MAIN DiD — GP direct referrals vs all other referrals, covered modalities
-==================================================================================
-  N=4,920 trust-source-months, 131 trusts
-  GP vs non-GP after the announcement                +5.79%  [  -0.33,  +12.28]  p=0.0639
+========================================================================================
+  April 2021 baseline (post-COVID recovery)  (N=8,030, 136 trusts)  +6.27%  [ +0.69, +12.15]  p=0.0271
+     + GP-specific calendar-month effects                 +6.25%  [ +0.50, +12.33]  p=0.0326
+  April 2018 baseline, pandemic year dropped  (N=14,335, 152 trusts)  +3.58%  [ -2.11,  +9.61]  p=0.2223
+     + GP-specific calendar-month effects                 +3.45%  [ -2.27,  +9.51]  p=0.2429
 
-==================================================================================
-2. EVENT STUDY (reference month 2022-10)
-==================================================================================
-  2022-04    -1.10%  [  -6.32,   +4.42]
-  2022-05    +2.26%  [  -2.21,   +6.94]
-  2022-06    -0.58%  [  -6.31,   +5.51]
-  2022-07    -1.33%  [  -7.64,   +5.40]
-  2022-08    -3.12%  [  -7.86,   +1.87]
-  2022-09    -3.30%  [  -7.27,   +0.85]
-  2022-11    +4.25%  [  -2.05,  +10.95]   <- announcement
-  2022-12    -3.03%  [  -7.14,   +1.26]
-  2023-01    +3.44%  [  -3.68,  +11.08]
-  2023-02    +4.01%  [  -3.73,  +12.38]
-  2023-03    +3.51%  [  -4.47,  +12.17]
-  2023-04    +6.29%  [  -2.26,  +15.60]
-  2023-05    +5.76%  [  -2.92,  +15.22]
-  2023-06    +4.21%  [  -4.35,  +13.54]
-  2023-07    +3.86%  [  -4.49,  +12.94]
-  2023-08    +6.25%  [  -5.71,  +19.72]
-  2023-09    +6.96%  [  -4.97,  +20.39]
-  2023-10    +5.64%  [  -3.01,  +15.07]
-  2023-11   +11.22%  [  -2.97,  +27.48]
+========================================================================================
+2. CHEST X-RAY PLACEBO — a modality the policy does not cover
+========================================================================================
+  April 2021 baseline (post-COVID recovery)              +18.66%  [+12.90, +24.71]  p=0.0000
+  April 2018 baseline, pandemic year dropped             +13.45%  [ +9.60, +17.44]  p=0.0000
 
-  All 6 pre-announcement coefficients include zero: True
+  A policy-specific effect requires this to be flat. It is not.
 
-==================================================================================
-3. CHEST X-RAY — a modality the policy does NOT cover
-==================================================================================
-  GP vs non-GP, chest x-ray                         +12.93%  [  +6.24,  +20.05]  p=0.0001
+========================================================================================
+3. EVENT STUDY (reference month 2022-10, April 2021 baseline)
+========================================================================================
+  18 pre-announcement months, 1 significant at 5% (chance expectation 0.9)
+  2021-04    -1.91%  [  -5.15,   +1.44]
+  2021-05    -1.95%  [  -6.66,   +3.00]
+  2021-06    -3.41%  [  -6.73,   +0.02]
+  2021-07    -0.76%  [  -4.77,   +3.41]
+  2021-08    -4.05%  [  -8.82,   +0.97]
+  2021-09    -4.36%  [ -10.54,   +2.25]
+  2021-10    -0.23%  [  -6.93,   +6.97]
+  2021-11    -3.08%  [  -7.69,   +1.75]
+  2021-12    -2.64%  [  -5.43,   +0.24]
+  2022-01    -5.76%  [ -10.35,   -0.94]  *
+  2022-02    -1.49%  [  -4.59,   +1.71]
+  2022-03    -1.14%  [  -4.29,   +2.12]
+  2022-04    -2.23%  [  -6.66,   +2.40]
+  2022-05    +0.05%  [  -4.36,   +4.67]
+  2022-06    -0.71%  [  -3.54,   +2.21]
+  2022-07    -1.73%  [  -4.82,   +1.46]
+  2022-08    -2.73%  [  -7.89,   +2.71]
+  2022-09    -2.83%  [  -7.13,   +1.68]
+  2022-11    +0.46%  [  -4.30,   +5.45]   <- announcement
+  2022-12    -0.30%  [  -3.54,   +3.04]
+  2023-01    +3.23%  [  -0.43,   +7.02]
+  2023-02    +2.62%  [  -0.87,   +6.24]
+  2023-03    +1.91%  [  -1.54,   +5.48]
+  2023-04    +4.98%  [  +0.15,  +10.06]  *
+  2023-05    +3.66%  [  -1.28,   +8.84]
+  2023-06    +3.99%  [  -0.13,   +8.28]
+  2023-07    +2.72%  [  -1.44,   +7.05]
+  2023-08    +6.33%  [  -1.66,  +14.98]
+  2023-09    +6.85%  [  -1.49,  +15.90]
+  2023-10    +4.93%  [  -3.48,  +14.08]
+  2023-11    +6.45%  [  -2.63,  +16.39]
 
-  If the policy alone were driving the covered-modality result, this
-  placebo should be flat. It is not — see the discussion in REVIEW.md.
-
-==================================================================================
-4. WAITING TIMES — median days from request to test (the policy's stated aim)
-==================================================================================
+========================================================================================
+4. WAITING TIMES — median days request-to-test (the policy's stated aim)
+========================================================================================
 
   CT (chest/abdomen)
-    GP median wait 13 -> 12 days
-      change vs all referrals at the same trust      +0.50%  [  -4.49,   +5.76]  p=0.8468
+      April 2021 baseline (post-COVID recove (13->12d)    +0.45%  [ -5.28,  +6.52]  p=0.8820
+      April 2018 baseline, pandemic year dro (14->12d)    -1.44%  [ -8.53,  +6.20]  p=0.7033
 
   MRI (brain)
-    GP median wait 20 -> 18 days
-      change vs all referrals at the same trust      -2.59%  [  -9.85,   +5.26]  p=0.5072
+      April 2021 baseline (post-COVID recove (21->18d)    -1.75%  [ -8.08,  +5.02]  p=0.6033
+      April 2018 baseline, pandemic year dro (20->18d)    +7.05%  [ -1.03, +15.79]  p=0.0887
 
   Ultrasound (kidney/bladder)
-    GP median wait 28 -> 26 days
-      change vs all referrals at the same trust     -13.05%  [ -21.48,   -3.71]  p=0.0072
+      April 2021 baseline (post-COVID recove (26->26d)    -8.96%  [-18.16,  +1.27]  p=0.0842
+      April 2018 baseline, pandemic year dro (26->26d)    -3.09%  [-13.58,  +8.67]  p=0.5910
 
   Ultrasound (abdomen/pelvis)
-    GP median wait 36 -> 31 days
-      change vs all referrals at the same trust      -8.91%  [ -16.88,   -0.17]  p=0.0459
+      April 2021 baseline (post-COVID recove (34->31d)    -6.87%  [-15.28,  +2.38]  p=0.1408
+      April 2018 baseline, pandemic year dro (32->31d)    +2.25%  [ -5.99, +11.20]  p=0.6042
 
-  Chest x-ray (not covered)
-    GP median wait 5 -> 3 days
-      change vs all referrals at the same trust     -23.40%  [ -39.65,   -2.76]  p=0.0285
+  Chest x-ray (NOT covered)
+      April 2021 baseline (post-COVID recove (6->3d)     -21.41%  [-38.26,  +0.04]  p=0.0504
+      April 2018 baseline, pandemic year dro (1->3d)      -2.42%  [-21.72, +21.65]  p=0.8277
 
   NOTE: the comparator is *all* referrals, which includes GP, so these
   differences are attenuated. Non-GP medians are not published separately.

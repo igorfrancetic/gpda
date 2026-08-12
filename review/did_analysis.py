@@ -1,41 +1,47 @@
 #!/usr/bin/env python3
 """
 Difference-in-differences analysis of the GP Direct Access policy using the
-NHS England Diagnostic Imaging Dataset trust panel (DID2014m4-2024m3.dta).
-
-Why this exists
----------------
-The original analysis compared GP direct access activity before and after the
-November 2022 announcement with no control group, so it could not separate the
-policy from the post-pandemic recovery in diagnostic services. The DID panel
-splits each trust's cancer-detection imaging into GP direct referrals and all
-other referrals, which supplies a within-trust control series.
+NHS England Diagnostic Imaging Dataset trust panel (data/*.dta).
 
 Design
 ------
   treated series : GP direct referral events, policy-covered modalities
                    (CT chest/abdomen, brain MRI, ultrasound kidney/bladder,
                     ultrasound abdomen/pelvis)
-  control series : non-GP referrals to the same trust, same modality, same month
-                   (= total - GP)
-  second control : chest x-ray, which the policy does not cover
+  control series : non-GP referrals to the same trust, same modality, same
+                   month (= total - GP)
+  placebo        : chest x-ray, which the policy does not cover
 
-  ln(events) ~ post x GP + trust-source fixed effects + month fixed effects
+  ln(events) ~ post x GP
+             + trust-source fixed effects
+             + calendar-time fixed effects
+             + GP-specific calendar-month effects   (seasonality)
   standard errors clustered on trust
+
+Why the baseline matters
+------------------------
+Diagnostic activity collapsed in 2020-21 and recovered through 2021-22, so a
+pre-period that starts in 2021 uses a depressed counterfactual and flatters any
+post-2022 comparison. Every estimate is therefore reported against two
+baselines: April 2021 (post-COVID recovery) and April 2018 excluding the
+pandemic year (pre-COVID norm).
 
 Data notes
 ----------
-  * The file is named 2014m4-2024m3 but only contains April 2022 - March 2024.
+  * data/ holds one file per financial year, 2018-19 to 2023-24.
   * February and March 2024 are structural zeros (every trust reports 0) and
-    December 2023 - January 2024 decay sharply, so the analysis window is
-    April 2022 to November 2023: 7 pre-announcement and 13 post months.
+    December 2023 - January 2024 decay sharply, so the series is cut at
+    November 2023.
+  * The pandemic disruption (March 2020 - March 2021) is dropped from the
+    long-baseline models.
   * Restricted to NHS trusts (organisation codes beginning R), as in the
     original paper.
 
 Usage
-    python review/did_analysis.py [--dta DID2014m4-2024m3.dta]
+    python review/did_analysis.py [--data data]
 """
 import argparse
+import glob
 from pathlib import Path
 
 import numpy as np
@@ -44,9 +50,18 @@ from scipy import stats
 
 COVERED_GP = ["gpcdict", "gpcdimri", "gpcdiultra1", "gpcdiultra2"]
 COVERED_TOT = ["totalcdict", "totalcdimri", "totalcdiultra1", "totalcdiultra2"]
-WINDOW = ("2022-04-01", "2023-11-01")
 ANNOUNCEMENT = "2022-11-01"
+SERIES_END = "2023-11-01"
+COVID = ("2020-03-01", "2021-03-01")
 REFERENCE_MONTH = "2022-10-01"
+
+WAIT_PAIRS = {
+    "CT (chest/abdomen)": ("mrtgpcdict", "mrttotalcdict"),
+    "MRI (brain)": ("mrtgpcdimri", "mrttotalcdimri"),
+    "Ultrasound (kidney/bladder)": ("mrtgpcdiultra1", "mrttotalcdiultra1"),
+    "Ultrasound (abdomen/pelvis)": ("mrtgpcdiultra2", "mrttotalcdiultra2"),
+    "Chest x-ray (NOT covered)": ("mrtgpcdixray", "mrttotalcdixray"),
+}
 
 
 def areg(df, y, names, X, absorb, cluster):
@@ -84,29 +99,36 @@ def pct(x):
     return 100 * (np.exp(x) - 1)
 
 
-def report(b, V, key, label):
+def line(b, V, key, label):
     e, se = b[key], V.loc[key, key] ** 0.5
     p = 2 * (1 - stats.norm.cdf(abs(e / se)))
-    print(f"  {label:<48s} {pct(e):+7.2f}%  "
-          f"[{pct(e - 1.96 * se):+7.2f}, {pct(e + 1.96 * se):+7.2f}]  p={p:.4f}")
+    print(f"  {label:<54s} {pct(e):+6.2f}%  "
+          f"[{pct(e - 1.96 * se):+6.2f}, {pct(e + 1.96 * se):+6.2f}]  p={p:.4f}")
 
 
-def load(dta):
-    d = pd.read_stata(dta, convert_categoricals=False)
-    d["ym"] = pd.to_datetime(d.yearmonth)
-    d = d[(d.ym >= WINDOW[0]) & (d.ym <= WINDOW[1])]
-    d = d[d.orgcode.str.startswith("R")]
-    d["gp_cov"] = d[COVERED_GP].sum(axis=1, min_count=1)
-    d["tot_cov"] = d[COVERED_TOT].sum(axis=1, min_count=1)
-    return d
+def load(folder):
+    files = sorted(glob.glob(str(Path(folder) / "*.dta")))
+    if not files:
+        raise SystemExit(f"no .dta files in {folder}")
+    D = pd.concat([pd.read_stata(f, convert_categoricals=False) for f in files],
+                  ignore_index=True)
+    D["ym"] = pd.to_datetime(D.yearmonth)
+    D = D[D.orgcode.str.startswith("R")]
+    D = D[D.ym <= SERIES_END]
+    D["gp_cov"] = D[COVERED_GP].sum(axis=1, min_count=1)
+    D["tot_cov"] = D[COVERED_TOT].sum(axis=1, min_count=1)
+    return D
 
 
-def two_series(d, gpcol, totcol):
-    """Stack GP and non-GP (= total - GP) as two series per trust-month."""
+def stack(d, gpcol, totcol, subtract=True):
+    """Two series per trust-month: GP, and the comparator."""
     t = d[["orgcode", "ym", gpcol, totcol]].copy()
-    t["ngp"] = t[totcol] - t[gpcol]
+    if subtract:
+        t["cmp"] = t[totcol] - t[gpcol]          # counts: non-GP is total minus GP
+    else:
+        t["cmp"] = t[totcol]                     # medians cannot be differenced
     a = t[["orgcode", "ym", gpcol]].rename(columns={gpcol: "y"}).assign(src="GP")
-    b = t[["orgcode", "ym", "ngp"]].rename(columns={"ngp": "y"}).assign(src="nonGP")
+    b = t[["orgcode", "ym", "cmp"]].rename(columns={"cmp": "y"}).assign(src="CMP")
     L = pd.concat([a, b]).dropna(subset=["y"])
     L = L[L.y > 0].copy()
     L["ly"] = np.log(L.y)
@@ -114,15 +136,11 @@ def two_series(d, gpcol, totcol):
     L["gp"] = (L.src == "GP").astype(float)
     L["cell"] = L.orgcode + "_" + L.src
     L["mo"] = L.ym.astype(str)
+    L["cm"] = L.ym.dt.month
     return L
 
 
-def month_dummies(L, add):
-    for mth in sorted(L.mo.unique())[1:]:
-        add(f"mo_{mth}", (L.mo == mth).astype(float))
-
-
-def fit_did(L, event=False):
+def fit(L, event=False, gp_season=True):
     names, X = [], []
 
     def add(n, v):
@@ -130,90 +148,93 @@ def fit_did(L, event=False):
         X.append(np.asarray(v, float))
 
     if event:
-        for mth in sorted(L.mo.unique()):
-            if mth != REFERENCE_MONTH:
-                add(f"k_{mth}", (L.mo == mth).astype(float) * L["gp"])
+        for m in sorted(L.mo.unique()):
+            if m != REFERENCE_MONTH:
+                add(f"k_{m}", (L.mo == m).astype(float) * L["gp"])
     else:
         add("post#GP", L["post"] * L["gp"])
-    month_dummies(L, add)
+    if gp_season:
+        for c in sorted(L.cm.unique())[1:]:
+            add(f"gpM{c}", (L.cm == c).astype(float) * L["gp"])
+    for m in sorted(L.mo.unique())[1:]:
+        add(f"mo_{m}", (L.mo == m).astype(float))
     return areg(L, "ly", names, np.column_stack(X), "cell", "orgcode")
+
+
+def baselines(D):
+    """The two counterfactual windows, each as a filtered frame."""
+    recovery = D[D.ym >= "2021-04-01"]
+    precovid = D[~((D.ym >= COVID[0]) & (D.ym <= COVID[1]))]
+    return [("April 2021 baseline (post-COVID recovery)", recovery),
+            ("April 2018 baseline, pandemic year dropped", precovid)]
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dta", default="DID2014m4-2024m3.dta", type=Path)
+    ap.add_argument("--data", default="data")
     args = ap.parse_args()
-    d = load(args.dta)
+    D = load(args.data)
 
-    print("=" * 82)
+    print("=" * 88)
     print("SAMPLE")
-    print("=" * 82)
-    print(f"  trusts {d.orgcode.nunique()}   months {d.ym.nunique()}   "
-          f"{d.ym.min().date()} to {d.ym.max().date()}  "
-          f"(7 pre-announcement, 13 post)")
+    print("=" * 88)
+    print(f"  trusts {D.orgcode.nunique()}   months {D.ym.nunique()}   "
+          f"{D.ym.min().date()} to {D.ym.max().date()}")
     print(f"  GP share of covered-modality cancer-detection events: "
-          f"{d.gp_cov.sum() / d.tot_cov.sum():.1%}")
-    print(f"  GP share of chest x-ray events: "
-          f"{d.gpcdixray.sum() / d.totalcdixray.sum():.1%}")
+          f"{D.gp_cov.sum() / D.tot_cov.sum():.1%}")
+    for lab, dd in baselines(D):
+        pre = dd[dd.ym < ANNOUNCEMENT]
+        print(f"  {lab}: {pre.ym.nunique()} pre-announcement months")
 
-    print("\n" + "=" * 82)
+    print("\n" + "=" * 88)
     print("1. MAIN DiD — GP direct referrals vs all other referrals, covered modalities")
-    print("=" * 82)
-    L = two_series(d, "gp_cov", "tot_cov")
-    b, V, N, C = fit_did(L)
-    print(f"  N={N:,} trust-source-months, {C} trusts")
-    report(b, V, "post#GP", "GP vs non-GP after the announcement")
+    print("=" * 88)
+    for lab, dd in baselines(D):
+        L = stack(dd, "gp_cov", "tot_cov")
+        b, V, N, C = fit(L, gp_season=False)
+        line(b, V, "post#GP", f"{lab}  (N={N:,}, {C} trusts)")
+        b, V, N, C = fit(L, gp_season=True)
+        line(b, V, "post#GP", "   + GP-specific calendar-month effects")
 
-    print("\n" + "=" * 82)
-    print(f"2. EVENT STUDY (reference month {REFERENCE_MONTH[:7]})")
-    print("=" * 82)
-    b, V, N, C = fit_did(L, event=True)
-    for k in [i for i in b.index if i.startswith("k_")]:
+    print("\n" + "=" * 88)
+    print("2. CHEST X-RAY PLACEBO — a modality the policy does not cover")
+    print("=" * 88)
+    for lab, dd in baselines(D):
+        L = stack(dd, "gpcdixray", "totalcdixray")
+        b, V, N, C = fit(L)
+        line(b, V, "post#GP", lab)
+    print("\n  A policy-specific effect requires this to be flat. It is not.")
+
+    print("\n" + "=" * 88)
+    print(f"3. EVENT STUDY (reference month {REFERENCE_MONTH[:7]}, April 2021 baseline)")
+    print("=" * 88)
+    L = stack(D[D.ym >= "2021-04-01"], "gp_cov", "tot_cov")
+    b, V, N, C = fit(L, event=True)
+    ks = [i for i in b.index if i.startswith("k_")]
+    pre = [k for k in ks if k[2:] < ANNOUNCEMENT]
+    nsig = sum(abs(b[k] / V.loc[k, k] ** 0.5) > 1.96 for k in pre)
+    print(f"  {len(pre)} pre-announcement months, {nsig} significant at 5% "
+          f"(chance expectation {0.05 * len(pre):.1f})")
+    for k in ks:
         e, se = b[k], V.loc[k, k] ** 0.5
-        flag = " *" if abs(e / se) > 1.96 else ""
+        flag = "  *" if abs(e / se) > 1.96 else ""
         mark = "   <- announcement" if k[2:] == ANNOUNCEMENT else ""
         print(f"  {k[2:9]}  {pct(e):+7.2f}%  "
               f"[{pct(e - 1.96 * se):+7.2f}, {pct(e + 1.96 * se):+7.2f}]{flag}{mark}")
-    pre = [i for i in b.index if i.startswith("k_2022-0")]
-    print(f"\n  All {len(pre)} pre-announcement coefficients include zero: "
-          f"{all(abs(b[k] / V.loc[k, k] ** 0.5) < 1.96 for k in pre)}")
 
-    print("\n" + "=" * 82)
-    print("3. CHEST X-RAY — a modality the policy does NOT cover")
-    print("=" * 82)
-    Lx = two_series(d, "gpcdixray", "totalcdixray")
-    bx, Vx, Nx, Cx = fit_did(Lx)
-    report(bx, Vx, "post#GP", "GP vs non-GP, chest x-ray")
-    print("\n  If the policy alone were driving the covered-modality result, this")
-    print("  placebo should be flat. It is not — see the discussion in REVIEW.md.")
-
-    print("\n" + "=" * 82)
-    print("4. WAITING TIMES — median days from request to test (the policy's stated aim)")
-    print("=" * 82)
-    pairs = {
-        "CT (chest/abdomen)": ("mrtgpcdict", "mrttotalcdict"),
-        "MRI (brain)": ("mrtgpcdimri", "mrttotalcdimri"),
-        "Ultrasound (kidney/bladder)": ("mrtgpcdiultra1", "mrttotalcdiultra1"),
-        "Ultrasound (abdomen/pelvis)": ("mrtgpcdiultra2", "mrttotalcdiultra2"),
-        "Chest x-ray (not covered)": ("mrtgpcdixray", "mrttotalcdixray"),
-    }
-    for label, (gcol, tcol) in pairs.items():
-        t = d[["orgcode", "ym", gcol, tcol]].dropna()
-        a = t[["orgcode", "ym", gcol]].rename(columns={gcol: "y"}).assign(src="GP")
-        bb = t[["orgcode", "ym", tcol]].rename(columns={tcol: "y"}).assign(src="All")
-        L2 = pd.concat([a, bb])
-        L2 = L2[L2.y > 0].copy()
-        L2["ly"] = np.log(L2.y)
-        L2["post"] = (L2.ym >= ANNOUNCEMENT).astype(float)
-        L2["gp"] = (L2.src == "GP").astype(float)
-        L2["cell"] = L2.orgcode + "_" + L2.src
-        L2["mo"] = L2.ym.astype(str)
-        b2, V2, _, _ = fit_did(L2)
-        pre_m = t.loc[t.ym < ANNOUNCEMENT, gcol].median()
-        post_m = t.loc[t.ym >= ANNOUNCEMENT, gcol].median()
+    print("\n" + "=" * 88)
+    print("4. WAITING TIMES — median days request-to-test (the policy's stated aim)")
+    print("=" * 88)
+    for label, (gcol, tcol) in WAIT_PAIRS.items():
         print(f"\n  {label}")
-        print(f"    GP median wait {pre_m:.0f} -> {post_m:.0f} days")
-        report(b2, V2, "post#GP", "    change vs all referrals at the same trust")
+        for lab, dd in baselines(D):
+            t = dd[["orgcode", "ym", gcol, tcol]].dropna()
+            L = stack(t, gcol, tcol, subtract=False)
+            b, V, _, _ = fit(L)
+            pre_m = t.loc[t.ym < ANNOUNCEMENT, gcol].median()
+            post_m = t.loc[t.ym >= ANNOUNCEMENT, gcol].median()
+            line(b, V, "post#GP",
+                 f"    {lab[:38]:<38s} ({pre_m:.0f}->{post_m:.0f}d)")
     print("\n  NOTE: the comparator is *all* referrals, which includes GP, so these")
     print("  differences are attenuated. Non-GP medians are not published separately.")
 
