@@ -1,0 +1,72 @@
+==================================================================================
+SAMPLE
+==================================================================================
+  trusts 143   months 20   2022-04-01 to 2023-11-01  (7 pre-announcement, 13 post)
+  GP share of covered-modality cancer-detection events: 26.9%
+  GP share of chest x-ray events: 25.9%
+
+==================================================================================
+1. MAIN DiD — GP direct referrals vs all other referrals, covered modalities
+==================================================================================
+  N=4,920 trust-source-months, 131 trusts
+  GP vs non-GP after the announcement                +5.79%  [  -0.33,  +12.28]  p=0.0639
+
+==================================================================================
+2. EVENT STUDY (reference month 2022-10)
+==================================================================================
+  2022-04    -1.10%  [  -6.32,   +4.42]
+  2022-05    +2.26%  [  -2.21,   +6.94]
+  2022-06    -0.58%  [  -6.31,   +5.51]
+  2022-07    -1.33%  [  -7.64,   +5.40]
+  2022-08    -3.12%  [  -7.86,   +1.87]
+  2022-09    -3.30%  [  -7.27,   +0.85]
+  2022-11    +4.25%  [  -2.05,  +10.95]   <- announcement
+  2022-12    -3.03%  [  -7.14,   +1.26]
+  2023-01    +3.44%  [  -3.68,  +11.08]
+  2023-02    +4.01%  [  -3.73,  +12.38]
+  2023-03    +3.51%  [  -4.47,  +12.17]
+  2023-04    +6.29%  [  -2.26,  +15.60]
+  2023-05    +5.76%  [  -2.92,  +15.22]
+  2023-06    +4.21%  [  -4.35,  +13.54]
+  2023-07    +3.86%  [  -4.49,  +12.94]
+  2023-08    +6.25%  [  -5.71,  +19.72]
+  2023-09    +6.96%  [  -4.97,  +20.39]
+  2023-10    +5.64%  [  -3.01,  +15.07]
+  2023-11   +11.22%  [  -2.97,  +27.48]
+
+  All 6 pre-announcement coefficients include zero: True
+
+==================================================================================
+3. CHEST X-RAY — a modality the policy does NOT cover
+==================================================================================
+  GP vs non-GP, chest x-ray                         +12.93%  [  +6.24,  +20.05]  p=0.0001
+
+  If the policy alone were driving the covered-modality result, this
+  placebo should be flat. It is not — see the discussion in REVIEW.md.
+
+==================================================================================
+4. WAITING TIMES — median days from request to test (the policy's stated aim)
+==================================================================================
+
+  CT (chest/abdomen)
+    GP median wait 13 -> 12 days
+      change vs all referrals at the same trust      +0.50%  [  -4.49,   +5.76]  p=0.8468
+
+  MRI (brain)
+    GP median wait 20 -> 18 days
+      change vs all referrals at the same trust      -2.59%  [  -9.85,   +5.26]  p=0.5072
+
+  Ultrasound (kidney/bladder)
+    GP median wait 28 -> 26 days
+      change vs all referrals at the same trust     -13.05%  [ -21.48,   -3.71]  p=0.0072
+
+  Ultrasound (abdomen/pelvis)
+    GP median wait 36 -> 31 days
+      change vs all referrals at the same trust      -8.91%  [ -16.88,   -0.17]  p=0.0459
+
+  Chest x-ray (not covered)
+    GP median wait 5 -> 3 days
+      change vs all referrals at the same trust     -23.40%  [ -39.65,   -2.76]  p=0.0285
+
+  NOTE: the comparator is *all* referrals, which includes GP, so these
+  differences are attenuated. Non-GP medians are not published separately.
