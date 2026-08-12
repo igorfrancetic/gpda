@@ -1,0 +1,6 @@
+# Python bytecode from running the review scripts
+__pycache__/
+*.py[cod]
+
+# Unpacked replication package (regenerate with: unzip replication.zip)
+replication/

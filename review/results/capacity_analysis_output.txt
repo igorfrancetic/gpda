@@ -1,0 +1,57 @@
+====================================================================================================
+FINDING 1: the heterogeneity regressors vary at TRUST level, but the
+published models cluster on PRACTICE.
+  practices: 7,819    trusts: 133    regions: 7
+====================================================================================================
+
+--- Tertiles of staff-to-scanner ratio (published-style specification)   (N=356,563) ---
+contrast                                 est          clustered on practice           clustered on orgcode
+Tertile 1 (fewest staff/scanner)        0.39   [  -0.85,   1.63] p=0.539   [  -2.33,   3.11] p=0.779   
+Tertile 2                               4.56   [   3.33,   5.79] p=0.000   [   1.45,   7.66] p=0.004   
+Tertile 3 (most staff/scanner)          4.10   [   2.08,   6.12] p=0.000   [  -0.36,   8.56] p=0.072   
+Tertile 3 - Tertile 1                   3.71   [   1.83,   5.59] p=0.000   [  -0.41,   7.83] p=0.077   
+Tertile 3 - Tertile 2                  -0.46   [  -2.18,   1.27] p=0.605   [  -4.97,   4.05] p=0.843   
+
+--- Bottom third vs upper two thirds, transparent specification   (N=356,563) ---
+contrast                                 est          clustered on practice           clustered on orgcode
+Upper two thirds                        4.19   [   3.62,   4.75] p=0.000   [   2.48,   5.89] p=0.000   
+Bottom third                            2.23   [   1.47,   2.99] p=0.000   [   0.69,   3.77] p=0.005   
+DIFFERENCE                             -1.96   [  -2.89,  -1.02] p=0.000   [  -4.26,   0.35] p=0.096   
+
+--- Regions (reference = East of England)   (N=356,563) ---
+contrast                                 est          clustered on practice             clustered on regid
+London - East of England                1.67   [  -0.05,   3.39] p=0.057   [  -1.45,   4.79] p=0.294   
+Midlands - East of England             -0.28   [  -2.05,   1.49] p=0.755   [  -1.77,   1.21] p=0.710   
+North East and Yorkshire - East of England    2.03   [   0.03,   4.03] p=0.047   [   0.55,   3.51] p=0.007   
+North West - East of England           -0.73   [  -2.60,   1.14] p=0.445   [  -1.98,   0.52] p=0.255   
+South East - East of England            0.03   [  -1.79,   1.85] p=0.973   [  -1.17,   1.23] p=0.959   
+South West - East of England            5.67   [   3.32,   8.02] p=0.000   [   3.95,   7.39] p=0.000   
+
+====================================================================================================
+FINDING 2: the tertile pattern flips with the trust-control interactions.
+====================================================================================================
+
+--- WITHOUT post x scanner counts / staffing   (N=356,563) ---
+contrast                                 est          clustered on practice           clustered on orgcode
+Tertile 1                               2.24   [   1.48,   2.99] p=0.000   [   0.70,   3.77] p=0.004   
+Tertile 2                               5.35   [   4.44,   6.27] p=0.000   [   2.47,   8.23] p=0.000   
+Tertile 3                               3.24   [   2.52,   3.96] p=0.000   [   1.20,   5.28] p=0.002   
+
+--- WITH post x scanner counts / staffing   (N=356,563) ---
+contrast                                 est          clustered on practice           clustered on orgcode
+Tertile 1                               0.39   [  -0.85,   1.63] p=0.539   [  -2.33,   3.11] p=0.779   
+Tertile 2                               4.56   [   3.33,   5.79] p=0.000   [   1.45,   7.66] p=0.004   
+Tertile 3                               4.10   [   2.08,   6.12] p=0.000   [  -0.36,   8.56] p=0.072   
+
+====================================================================================================
+FINDING 3: the capacity contrast does not survive group-specific trends.
+====================================================================================================
+
+--- Bottom third vs rest, with common and group-specific linear trends   (N=356,563) ---
+contrast                                 est          clustered on practice           clustered on orgcode
+DIFFERENCE at the announcement         -0.54   [  -1.81,   0.73] p=0.407   [  -3.01,   1.94] p=0.671   
+differential trend per month           -0.10   [  -0.19,  -0.01] p=0.024   [  -0.27,   0.07] p=0.241   
+
+--- Placebo: fictitious announcement May 2022, pre-period only   (N=162,725) ---
+contrast                                 est          clustered on practice           clustered on orgcode
+DIFFERENCE                             -0.25   [  -1.29,   0.79] p=0.641   [  -2.16,   1.66] p=0.800   
