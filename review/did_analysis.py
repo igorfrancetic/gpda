@@ -5,12 +5,14 @@ NHS England Diagnostic Imaging Dataset trust panel (data/*.dta).
 
 Design
 ------
-  treated series : GP direct referral events, policy-covered modalities
-                   (CT chest/abdomen, brain MRI, ultrasound kidney/bladder,
-                    ultrasound abdomen/pelvis)
+  treated series : GP direct referral events in the modalities NHS England's
+                   guidance names as the minimum direct access set -- chest
+                   x-ray, CT chest, CT abdomen/pelvis, ultrasound
+                   abdomen/pelvis and brain MRI
   control series : non-GP referrals to the same trust, same modality, same
                    month (= total - GP)
-  placebo        : chest x-ray, which the policy does not cover
+  comparator     : ultrasound kidney/bladder, which the guidance does not name
+                   in that minimum set
 
   ln(events) ~ post x GP
              + trust-source fixed effects
@@ -48,8 +50,14 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-COVERED_GP = ["gpcdict", "gpcdimri", "gpcdiultra1", "gpcdiultra2"]
-COVERED_TOT = ["totalcdict", "totalcdimri", "totalcdiultra1", "totalcdiultra2"]
+# NHS England guidance names, as the minimum set: chest x-ray, CT chest,
+# CT abdomen and pelvis, ultrasound abdomen and pelvis, and brain MRI.
+# Chest x-ray IS covered -- it cannot be used as a control modality.
+COVERED_GP = ["gpcdict", "gpcdimri", "gpcdiultra2", "gpcdixray"]
+COVERED_TOT = ["totalcdict", "totalcdimri", "totalcdiultra2", "totalcdixray"]
+# Ultrasound kidney/bladder is not named in the guidance's minimum set, so it
+# serves as a candidate untreated comparator (confirm against the full text).
+PLACEBO = ("gpcdiultra1", "totalcdiultra1")
 ANNOUNCEMENT = "2022-11-01"
 SERIES_END = "2023-11-01"
 COVID = ("2020-03-01", "2021-03-01")
@@ -60,7 +68,7 @@ WAIT_PAIRS = {
     "MRI (brain)": ("mrtgpcdimri", "mrttotalcdimri"),
     "Ultrasound (kidney/bladder)": ("mrtgpcdiultra1", "mrttotalcdiultra1"),
     "Ultrasound (abdomen/pelvis)": ("mrtgpcdiultra2", "mrttotalcdiultra2"),
-    "Chest x-ray (NOT covered)": ("mrtgpcdixray", "mrttotalcdixray"),
+    "Chest x-ray": ("mrtgpcdixray", "mrttotalcdixray"),
 }
 
 
@@ -197,19 +205,25 @@ def main():
         line(b, V, "post#GP", "   + GP-specific calendar-month effects")
 
     print("\n" + "=" * 88)
-    print("2. CHEST X-RAY PLACEBO — a modality the policy does not cover")
+    print("2. BY MODALITY, and the candidate untreated comparator")
     print("=" * 88)
+    mods = {"CT chest/abdomen": ("gpcdict", "totalcdict"),
+            "Brain MRI": ("gpcdimri", "totalcdimri"),
+            "Ultrasound abdomen/pelvis": ("gpcdiultra2", "totalcdiultra2"),
+            "Chest x-ray": ("gpcdixray", "totalcdixray"),
+            "Ultrasound kidney/bladder (not named)": PLACEBO}
     for lab, dd in baselines(D):
-        L = stack(dd, "gpcdixray", "totalcdixray")
-        b, V, N, C = fit(L)
-        line(b, V, "post#GP", lab)
-    print("\n  A policy-specific effect requires this to be flat. It is not.")
+        print(f"\n  --- {lab} ---")
+        for m, (g_, t_) in mods.items():
+            L = stack(dd, g_, t_)
+            b, V, N, C = fit(L)
+            line(b, V, "post#GP", f"    {m}")
 
     print("\n" + "=" * 88)
     print(f"3. EVENT STUDY (reference month {REFERENCE_MONTH[:7]}, April 2021 baseline)")
     print("=" * 88)
     L = stack(D[D.ym >= "2021-04-01"], "gp_cov", "tot_cov")
-    b, V, N, C = fit(L, event=True)
+    b, V, N, C = fit(L, event=True, gp_season=False)   # month x GP spans seasonality
     ks = [i for i in b.index if i.startswith("k_")]
     pre = [k for k in ks if k[2:] < ANNOUNCEMENT]
     nsig = sum(abs(b[k] / V.loc[k, k] ** 0.5) > 1.96 for k in pre)
