@@ -4,3 +4,6 @@ __pycache__/
 
 # Unpacked replication package (regenerate with: unzip replication.zip)
 replication/
+
+# Rebuilt panel (regenerate with: python review/build_panel.py)
+review/results/panel_from_raw.csv
