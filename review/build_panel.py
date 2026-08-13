@@ -56,6 +56,12 @@ COVERED = ["Chest (X-ray)", "Chest and/or abdomen (CT)", "Brain (MRI)",
            "Abdomen and/or pelvis (Ultrasound)"]
 COMPARATOR = "Kidney or Bladder (Ultrasound)"
 
+# NHS England region codes, verified against the National Imaging Data Collection
+# (Y54 and Y55 are the pre-2022 codes and are resolved per trust below.)
+REGIONS = {"Y56": "London", "Y58": "South West", "Y59": "South East",
+           "Y60": "Midlands", "Y61": "East of England", "Y62": "North West",
+           "Y63": "North East and Yorkshire"}
+
 
 def read_table(pattern, value_name):
     """Read one DID table across all financial years into long format."""
@@ -87,13 +93,14 @@ def read_table(pattern, value_name):
                 continue           # the "-" rows are the ENGLAND totals
             org = str(org).strip()
             test, src = str(r[col["Test"]]), str(r[col["Source setting"]])
+            regioncode = str(r[col["Region"]]).strip() if "Region" in col else ""
             for i, month in month_cols.items():
                 v = pd.to_numeric(r[i], errors="coerce")
                 if pd.isna(v):
                     continue
                 year_of = fy_start if month >= 4 else fy_start + 1
-                rows.append((org, test, src, pd.Timestamp(year_of, month, 1), v))
-        frames.append(pd.DataFrame(rows, columns=["orgcode", "test", "src", "ym", value_name]))
+                rows.append((org, regioncode, test, src, pd.Timestamp(year_of, month, 1), v))
+        frames.append(pd.DataFrame(rows, columns=["orgcode", "regioncode", "test", "src", "ym", value_name]))
 
     print(f"  {os.path.basename(pattern)}")
     for year, hr, nm in meta:
@@ -111,11 +118,20 @@ def main():
     counts = read_table(os.path.join(args.raw, "*", "DID-Table-4-*.xlsx"), "events")
     waits = read_table(os.path.join(args.raw, "*", "DID-Table-5-*.xlsx"), "wait")
 
-    panel = counts.merge(waits, on=["orgcode", "test", "src", "ym"], how="outer")
+    panel = counts.merge(waits, on=["orgcode", "regioncode", "test", "src", "ym"], how="outer")
     panel = panel[panel.orgcode.str.startswith("R")]      # NHS trusts only
 
     Path(args.out).mkdir(parents=True, exist_ok=True)
     dest = Path(args.out) / "panel_from_raw.csv"
+    # NHS England region, carried through for the community diagnostic centre
+    # check. The 2018-19 and 2019-20 tables still use the pre-reorganisation
+    # codes Y54 and Y55, so each trust takes the modern region it is given in
+    # any later year; region is a trust attribute, not a monthly one.
+    panel["region"] = panel.regioncode.map(REGIONS)
+    lookup = (panel.dropna(subset=["region"])
+                   .groupby("orgcode").region
+                   .agg(lambda x: x.value_counts().idxmax()))
+    panel["region"] = panel.orgcode.map(lookup)
     panel.sort_values(["orgcode", "test", "src", "ym"]).to_csv(dest, index=False)
 
     print(f"\nPanel written to {dest}")
