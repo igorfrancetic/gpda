@@ -20,12 +20,9 @@ Correspondence: Igor Francetic, igor.francetic@manchester.ac.uk
 
 | Path | Contents |
 |---|---|
-| `manuscript/` | The manuscript, both figures (300 dpi PNG and vector PDF), and the scripts that generate them |
 | `stata/did_pipeline.do` | **The complete analysis.** Runs end to end from the raw spreadsheets — no other input needed |
 | `datain/raw_trust/` | NHS England Diagnostic Imaging Dataset published tables, financial years 2018-19 to 2024-25 |
 | `datain/cdc/` | Community diagnostic centre opening dates, from the government's operational list |
-| `datain/gpda.xlsx` | Quarterly GP Direct Access activity by practice and provider, 2018/19 to 2025/26 Q1 |
-| `review/` | Python implementation of the same analysis, plus the review that produced it |
 
 ## Reproducing the paper
 
