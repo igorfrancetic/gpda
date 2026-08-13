@@ -39,15 +39,29 @@ Reproduce with `python review/did_analysis.py`; full output in
    "Advances in knowledge" requirement are already met; OUP's site was not
    reachable to verify the rest.
 2. **Re-run the models in Stata.** `stata/did_pipeline.do` is the full pipeline
-   for this manuscript — panel build, main DiD under both baselines, by-modality,
-   waiting times including the pooled estimate, placebo, differential trend,
-   event study and table export. It has **not been executed** (no Stata in the
-   environment it was written in), but its data-build steps were verified
-   line-by-line against the Python and produce an identical panel: 9,984
-   trust-months, 160 trusts, and stacked analysis samples of 8,214 and 14,617.
-   Those checks are `assert`ed at the top of the do-file, and every section
-   carries the expected estimate as a comment, so a divergence will be obvious.
+   for this manuscript — panel build, main DiD under both baselines,
+   by-modality, waiting times including the pooled estimate, placebo,
+   differential trend, a Callaway–Sant'Anna event study, and table export. It
+   is written linearly: one long panel, then every analysis as a single
+   estimation command selected with an `if` condition.
+
+   It has **not been executed** (no Stata in the environment it was written
+   in), but its data-build steps were verified against the Python and produce
+   an identical panel: 9,984 trust-months, 160 trusts, and stacked analysis
+   samples of 8,214 and 14,617. Those totals are `assert`ed at the top, and
+   every section carries its expected estimate as a comment.
    `review/robustness.do` covers the earlier practice-level analyses.
+
+   On the event-study estimator: treatment timing here is **common**, not
+   staggered — every treated series is treated in November 2022 and the
+   comparators are never treated — so the negative-weighting problem that
+   motivates Callaway–Sant'Anna over two-way fixed effects does not arise.
+   The two agree: the CS simple aggregation is about +9.1% on a seasonally
+   adjusted outcome against +10.4% from two-way fixed effects. `csdid` adds a
+   clean never-treated comparison, the doubly robust estimator and uniform
+   bands, but it carries no calendar-month controls, so section 07c repeats it
+   on an outcome from which GP-specific seasonality has been removed using
+   pre-announcement months only.
 3. **Complete the STROBE checklist** and attach it as supplementary material —
    the Methods section already states that it was followed.
 4. **Decide the relationship to the earlier practice-level paper.** This
