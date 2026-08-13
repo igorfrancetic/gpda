@@ -41,16 +41,6 @@ robustness, and writes the tables and all three figures — Figure 1, Figure 2
 and the event-study plot — into `stata/tables/` and `stata/figures/`. It needs `reghdfe`, `ftools`,
 `estout`, `coefplot`, `csdid` and `drdid` from SSC.
 
-A Python implementation of the same analysis is in `review/`, which is what
-the manuscript's numbers were computed from:
-
-```bash
-python review/build_panel.py          # raw spreadsheets -> analysis panel
-python review/did_analysis.py         # main models
-python review/cdc_confounder_test.py  # community diagnostic centres
-python review/practice_panel.py       # practice-level quarterly analysis
-```
-
 ## The design in one paragraph
 
 GP direct referrals are the treated series. Referrals from all other sources
@@ -82,24 +72,6 @@ rather than by position.
 
 Ultrasound of the kidney or bladder is the one published test group the
 guidance does not name, and is reported throughout as a comparator.
-
-## Superseded material
-
-An earlier version of this work analysed a bespoke practice-level extract
-without a control series, and reported that trusts with fewer imaging staff
-per scanner were less able to deliver the increase. That finding did not
-survive: it fails under trust-level clustering, under a pooled interaction
-model, and under a within-practice design using 527,597 practice–provider
-observations, where the point estimates reverse sign. `review/REVIEW.md`
-records what changed and why.
-
-The original appendix (`appendix.pdf`) and replication package
-(`replication.zip`) have been removed from the working tree. They remain in
-git history at commit `77a13ea` and can be recovered with:
-
-```bash
-git show 77a13ea:appendix.pdf > appendix.pdf
-git show 77a13ea:replication.zip > replication.zip
 ```
 
 `review/verify.py`, `review/capacity_analysis.py`, `review/robustness.do` and
