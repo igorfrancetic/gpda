@@ -1,6 +1,6 @@
 # BJR Short Communication
 
-**More tests, not faster tests: GP direct access to cancer diagnostic imaging in England, 2018–2023**
+**More tests, not faster tests: GP direct access to cancer diagnostic imaging in England, 2018–2025**
 
 | File | Contents |
 |---|---|
@@ -16,18 +16,23 @@ PDF from any vector editor) — do not upscale the PNG.
 
 ## The headline numbers
 
-All estimates are differences-in-differences against non-GP referrals to the
-same trust, in the same modality and month, over April 2018 – November 2023
-excluding the pandemic disruption, clustered on 154 trusts.
+Differences-in-differences against non-GP referrals to the same trust, in the
+same test group and month, April 2018 – March 2025 excluding the pandemic year,
+clustered on 160 trusts. 29 post-announcement months.
 
 | | Activity | Median wait |
 |---|---|---|
-| All covered modalities | **+10.4%** (5.8 to 15.3) | +5.9% (−0.04 to 12.1) |
-| Brain MRI | +29.0% (20.0 to 38.7) | +7.1% (−1.0 to 15.8) |
-| CT chest and abdomen/pelvis | +14.8% (5.7 to 24.7) | −1.4% (−8.5 to 6.2) |
-| Chest radiography | +13.4% (9.6 to 17.4) | −2.4% (−21.7 to 21.7) |
-| Ultrasound abdomen/pelvis | +6.1% (−0.7 to 13.5) | +2.2% (−6.0 to 11.2) |
-| Ultrasound kidney/bladder *(not named in guidance)* | +4.1% (−6.7 to 16.3) | −3.1% (−13.6 to 8.7) |
+| **All covered test groups** | **+10.1%** (5.1 to 15.3) | +3.1% (−1.8 to 8.3) |
+| Brain MRI | +35.2% (24.7 to 46.7) | +3.9% (−4.2 to 12.7) |
+| CT chest and abdomen/pelvis | +14.9% (6.6 to 23.8) | −6.4% (−13.1 to 0.9) |
+| Chest radiography | +12.9% (8.5 to 17.6) | −8.7% (−29.2 to 17.7) |
+| Ultrasound abdomen/pelvis | +7.1% (−0.2 to 15.0) | −2.3% (−9.8 to 5.7) |
+| Ultrasound kidney/bladder *(not named in guidance)* | +8.2% (−4.6 to 22.8) | −10.2% (−19.8 to 0.4) |
+
+No waiting-time change reaches significance in any group. Robustness: placebo
+announcement −1.1% (p=0.69); with a differential linear trend +16.8%;
+truncated at November 2023 +10.7%; adjusting for regional community diagnostic
+centre exposure +13.5%, with the exposure term itself null.
 
 Reproduce with `python review/did_analysis.py`; full output in
 `review/results/did_analysis_output.txt`.
@@ -38,16 +43,25 @@ Reproduce with `python review/did_analysis.py`; full output in
    references, figures and tables. The abstract limit (200 words) and the
    "Advances in knowledge" requirement are already met; OUP's site was not
    reachable to verify the rest.
-2. **Re-run the models in Stata.** `stata/did_pipeline.do` is the full pipeline
-   for this manuscript — panel build, main DiD under both baselines, by-modality,
-   waiting times including the pooled estimate, placebo, differential trend,
-   event study and table export. It has **not been executed** (no Stata in the
-   environment it was written in), but its data-build steps were verified
-   line-by-line against the Python and produce an identical panel: 9,984
-   trust-months, 160 trusts, and stacked analysis samples of 8,214 and 14,617.
-   Those checks are `assert`ed at the top of the do-file, and every section
-   carries the expected estimate as a comment, so a divergence will be obvious.
-   `review/robustness.do` covers the earlier practice-level analyses.
+2. **Run the Stata pipeline.** `stata/did_pipeline.do` is self-contained: it
+   imports the raw published spreadsheets from `datain/`, builds the panel,
+   estimates every model in the paper, runs the community diagnostic centre
+   check and the Callaway–Sant'Anna robustness, and writes the tables and
+   figures. Nothing else is needed — no derived `.dta` files, no Python.
+
+   It has **not been executed** (no Stata in the environment it was written
+   in), so treat it as unverified until you run it. Every section carries its
+   expected estimate as a comment, so a divergence will be obvious. Header rows
+   in the source workbooks move between years, so columns are located by
+   content rather than position.
+
+   **Two-way fixed effects is primary**; Callaway–Sant'Anna is a robustness
+   check. Treatment timing is common, not staggered — every treated series is
+   treated in November 2022 and the comparators are never treated — so the
+   negative-weighting problem that motivates CS does not arise, and TWFE
+   additionally admits GP-specific calendar-month controls, which matters
+   because seasonality is the dominant nuisance in these data.
+
 3. **Complete the STROBE checklist** and attach it as supplementary material —
    the Methods section already states that it was followed.
 4. **Decide the relationship to the earlier practice-level paper.** This

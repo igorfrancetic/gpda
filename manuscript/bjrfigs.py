@@ -16,15 +16,15 @@ ax.axvline(pd.Timestamp('2022-11-01'),color=ORANGE,lw=1.2,ls=(0,(4,3)),zorder=4)
 ax.annotate('Policy announced\nNov 2022',xy=(pd.Timestamp('2022-11-15'),12.8),
             fontsize=7,color=ORANGE,ha='left',weight='bold')
 for x0,x1,lab in [('2018-04-01','2020-02-01','pre-pandemic\nmean 25.1%'),
-                  ('2022-11-01','2023-11-01','post-policy\nmean 27.0%')]:
+                  ('2022-11-01','2025-03-01','post-policy\nmean 26.7%')]:
     s=g[(g.ym>=x0)&(g.ym<=x1)].share.mean()
-    ax.hlines(s,pd.Timestamp(x0),pd.Timestamp(x1),color=ORANGE if '27' in lab else MUTED,
+    ax.hlines(s,pd.Timestamp(x0),pd.Timestamp(x1),color=ORANGE if 'post' in lab else MUTED,
               lw=1.6,zorder=5)
-    ax.annotate(lab,xy=(pd.Timestamp(x1),s),xytext=(3,-14 if '25' in lab else 6),
+    ax.annotate(lab,xy=(pd.Timestamp(x1),s),xytext=(3,-14 if 'pre' in lab else 6),
                 textcoords='offset points',fontsize=6.8,
-                color=ORANGE if '27' in lab else MUTED,weight='bold')
+                color=ORANGE if 'post' in lab else MUTED,weight='bold')
 ax.set_ylabel('GP direct referrals as % of all\ncancer-detection imaging events')
-ax.set_ylim(8,31); ax.grid(axis='y',color='#eee',lw=.6,zorder=0); ax.set_axisbelow(True)
+ax.set_ylim(8,33); ax.grid(axis='y',color='#eee',lw=.6,zorder=0); ax.set_axisbelow(True)
 for s in ('top','right'): ax.spines[s].set_visible(False)
 fig.tight_layout(); fig.savefig('BJR_Fig1.png',dpi=300,bbox_inches='tight')
 fig.savefig('BJR_Fig1.pdf',bbox_inches='tight')
@@ -51,7 +51,7 @@ for ax,kind,title,col in [(axes[0],'Volume','Imaging activity',BLUE),
     for s in ('top','right','left'): ax.spines[s].set_visible(False)
     ax.tick_params(axis='y',length=0)
 axes[0].set_yticks(np.arange(len(order))[::-1]); axes[0].set_yticklabels(order,fontsize=7.2)
-axes[0].set_xlim(-12,48); axes[1].set_xlim(-28,30)
+axes[0].set_xlim(-12,56); axes[1].set_xlim(-34,26)
 fig.tight_layout(); fig.savefig('BJR_Fig2.png',dpi=300,bbox_inches='tight')
 fig.savefig('BJR_Fig2.pdf',bbox_inches='tight')
 print('ok')
