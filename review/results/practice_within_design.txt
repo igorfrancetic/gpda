@@ -1,0 +1,10 @@
+rows 527,597  practices 8,454  providers 134  quarters 28
+practice-provider pairs 114,238   practice-quarter cells 193,287
+
+=== WITHIN-PRACTICE design: practice x provider FE + practice x quarter FE ===
+    every practice-level shock (incl. the national policy) is absorbed;
+    identification is across providers used by the SAME practice in the SAME quarter
+
+  post#T2 (vs bottom tertile):  -9.74%  [-22.65, +5.32]  p=0.1932
+  post#T3 (vs bottom tertile):  -5.19%  [-15.91, +6.89]  p=0.3836
+  N=527,597  clusters(providers)=134
