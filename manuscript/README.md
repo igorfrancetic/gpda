@@ -52,16 +52,20 @@ Reproduce with `python review/did_analysis.py`; full output in
    every section carries its expected estimate as a comment.
    `review/robustness.do` covers the earlier practice-level analyses.
 
-   On the event-study estimator: treatment timing here is **common**, not
-   staggered — every treated series is treated in November 2022 and the
-   comparators are never treated — so the negative-weighting problem that
-   motivates Callaway–Sant'Anna over two-way fixed effects does not arise.
-   The two agree: the CS simple aggregation is about +9.1% on a seasonally
-   adjusted outcome against +10.4% from two-way fixed effects. `csdid` adds a
-   clean never-treated comparison, the doubly robust estimator and uniform
-   bands, but it carries no calendar-month controls, so section 07c repeats it
-   on an outcome from which GP-specific seasonality has been removed using
-   pre-announcement months only.
+   **Two-way fixed effects is the primary estimator** (sections 03–06);
+   Callaway–Sant'Anna (section 07) is a robustness check. Treatment timing here
+   is common, not staggered — every treated series is treated in November 2022
+   and the comparators are never treated — so the negative-weighting problem
+   that motivates CS over TWFE does not arise, and TWFE additionally admits
+   GP-specific calendar-month controls, which matters because seasonality is
+   the dominant nuisance in these data. The two agree: CS gives about +9.1% on
+   a seasonally adjusted outcome against +10.4% from TWFE. `csdid` carries no
+   calendar-month controls, so section 07c repeats it on an outcome from which
+   GP-specific seasonality has been removed using pre-announcement months only.
+
+   The manuscript states this in one Methods sentence and reports the CS
+   estimate in one Results sentence, citing Callaway and Sant'Anna (2021) as
+   reference 11.
 3. **Complete the STROBE checklist** and attach it as supplementary material —
    the Methods section already states that it was followed.
 4. **Decide the relationship to the earlier practice-level paper.** This

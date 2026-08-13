@@ -10,6 +10,15 @@
 *! Counterpart of review/did_analysis.py. Expected results are given as
 *! comments above each block; a mismatch means the pipelines have diverged.
 *!
+*! ESTIMATOR. Two-way fixed effects is the PRIMARY estimator throughout
+*! (sections 03-06). Treatment timing here is common rather than staggered and
+*! the comparator series are never treated, so TWFE recovers the ATT without
+*! the weighting problems that arise under staggered adoption. TWFE also
+*! admits GP-specific calendar-month controls, which matters because
+*! seasonality is the dominant nuisance in these data. Callaway-Sant'Anna
+*! (section 07) is reported as a ROBUSTNESS CHECK confirming the main result,
+*! not as the headline.
+*!
 *! Requires:
 *!     ssc install reghdfe, replace
 *!     ssc install ftools, replace
@@ -229,7 +238,8 @@ save "stata/dataout/did_long.dta", replace
 use "stata/dataout/did_long.dta", clear
 
 display as txt _n "{hline 78}"
-display as txt "3a. Main DiD, April 2021 baseline (sensitivity)"
+display as txt "3a. PRIMARY ESTIMATOR (two-way fixed effects)"
+display as txt "    Main DiD, April 2021 baseline (sensitivity window)"
 display as txt "{hline 78}"
 reghdfe lev postgp i.cm#c.gp if modality == 0 & src <= 2 & s_recovery, ///
     absorb(cell yearmonth) vce(cluster orgcode)
@@ -237,7 +247,8 @@ eststo main_recovery
 display as result "  percentage change = " %6.2f 100*(exp(_b[postgp])-1) "%"
 
 display as txt _n "{hline 78}"
-display as txt "3b. Main DiD, April 2018 baseline  [PRIMARY]"
+display as txt "3b. PRIMARY ESTIMATOR (two-way fixed effects)"
+display as txt "    Main DiD, April 2018 baseline  [HEADLINE RESULT]"
 display as txt "{hline 78}"
 reghdfe lev postgp i.cm#c.gp if modality == 0 & src <= 2 & s_precovid, ///
     absorb(cell yearmonth) vce(cluster orgcode)
@@ -356,16 +367,18 @@ display as result "  Differential trend per month: " %6.3f 100*(exp(_b[tgp])-1) 
 
 
 * ===========================================================================
-* 07. Event study: Callaway and Sant'Anna (2021)
+* 07. ROBUSTNESS: Callaway and Sant'Anna (2021) event study
 * ===========================================================================
-* NOTE ON THE ESTIMATOR. Treatment timing here is COMMON, not staggered: every
-* treated series (GP referrals) is treated in November 2022, and the comparator
-* series are never treated. The negative-weighting and forbidden-comparison
-* problems that motivate Callaway-Sant'Anna over two-way fixed effects
-* therefore do not arise in this design, and the two should agree closely.
-* What csdid does add here is a clean never-treated comparison group, the
-* doubly robust estimator, and uniform confidence bands that account for
-* testing many event times at once.
+* This section confirms the primary two-way fixed effects results above; it is
+* not the headline estimate. Treatment timing here is COMMON, not staggered:
+* every treated series (GP referrals) is treated in November 2022, and the
+* comparator series are never treated. The negative-weighting and
+* forbidden-comparison problems that motivate Callaway-Sant'Anna over two-way
+* fixed effects therefore do not arise in this design, and the two agree.
+* What csdid adds is a clean never-treated comparison group, the doubly robust
+* estimator, and uniform confidence bands across event times. What it gives up
+* is the ability to condition on GP-specific seasonality, which is why the
+* primary specification remains two-way fixed effects (see 07c).
 *
 * Two practical points:
 *   (a) csdid needs consecutive time periods. Dropping the pandemic months
@@ -388,7 +401,7 @@ display as result "  Differential trend per month: " %6.3f 100*(exp(_b[tgp])-1) 
 * compared with the two-way fixed effects estimate of +10.4%.
 
 display as txt _n "{hline 78}"
-display as txt "7. Callaway-Sant'Anna event study"
+display as txt "7. ROBUSTNESS: Callaway-Sant'Anna event study"
 display as txt "{hline 78}"
 
 * --- 07a. contiguous April 2021 window, raw outcome ---
