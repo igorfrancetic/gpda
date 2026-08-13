@@ -1,7 +1,6 @@
 # GP direct access to cancer diagnostic imaging in England
 
-Data and code for the paper **"More tests, not faster tests: GP direct access
-to cancer diagnostic imaging in England, 2018–2025"**.
+Data and code for the paper **"More tests, not faster tests: Trends in radiology tests in response to NHS England’s announcement on direct access investigations"**.
 
 In November 2022 NHS England gave general practitioners direct access to a
 defined minimum set of imaging tests — chest radiography, CT of the chest and
