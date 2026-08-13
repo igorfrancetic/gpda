@@ -1,0 +1,12 @@
+Do community diagnostic centres explain the November 2022 step?
+All 79 dated first-wave CDCs opened BEFORE the announcement (Jul 2021 - Aug 2022),
+so by timing they cannot generate a step at Nov 2022. Testing directly:
+
+1. Announcement only
+   post#GP                +10.14%  [ +5.05,+15.48]  p=0.0001
+   N=17,248  trusts=130
+
+2. + regional CDC exposure (cumulative CDCs live, per SD) x GP
+   post#GP                +13.50%  [ +5.51,+22.10]  p=0.0007
+   cdc#GP                  -2.14%  [ -5.42, +1.24]  p=0.2115
+   N=17,248  trusts=130

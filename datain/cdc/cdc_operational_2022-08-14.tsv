@@ -1,0 +1,93 @@
+region	area	cdc_title	live_date
+East of England	Basildon and Billericay	Basildon Community Diagnostics CDC	1 Aug 2021
+East of England	Peterborough	Cambridge and Peterborough CDC	1 Jul 2021
+East of England	Norwich South	Central Norfolk CDC	4 Apr 2022
+East of England	Clacton	Clacton CDC	8 Aug 2021
+East of England	Great Yarmouth	East Norfolk CDC	12 Dec 2021
+East of England	Welwyn Hatfield	New QEII Hospital CDC	1 Mar 2022
+East of England	North West Norfolk	West Norfolk CDC	4 Apr 2022
+London	Barking	Barking Community Hospital CDC	14 Jul 2021
+London	Finchley and Golders Green	Finchley Memorial Hospital CDC	2 Aug 2021
+London	Hornsey and Wood Green	Finchley Memorial Hospital CDC (Wood Green)	25 Aug 2022
+London	Bermondsey and Southwark	Guys Cancer Centre CDC	4 Sep 2021
+London	Bethnal Green and Bow	Mile End Hospital CDC	1 Jul 2021
+London	Ealing and Southall	North West London CDC	19 Jul 2021
+London	Putney	Queen Marys Hospital Roehampton CDC	1 Aug 2021
+London	Mitcham and Morden	Queen Marys Hospital Roehampton CDC (Epsom)	HUB
+London	Richmond Park	Queen Marys Hospital Roehampton CDC (Kingston)	HUB
+London	Croydon South	Queen Marys Hospital Roehampton CDC (Purley)	HUB
+London	Tooting	Queen Marys Hospital Roehampton CDC (St Georges)	HUB
+London	Wimbledon	Queen Marys Hospital Roehampton CDC (The Nelson)	HUB
+London	Mitcham and Morden	Queen Marys Hospital Roehampton CDC (The Wilson)	HUB
+London	Dulwich and West Norwood	Tessa Jowell Health Care Centre CDC	26 Jul 2021
+Midlands	Cannock Chase	Cannock Chase CDC	14 Jul 2021
+Midlands	Stourbridge	Corbett CDC	1 Oct 2021
+Midlands	Coventry North East	Coventry City Community CDC	1 Nov 2021
+Midlands	Derby North	Florence Nightingale Community Hospital CDC	1 Nov 2021
+Midlands	Grantham and Stamford	Grantham CDC	1 Nov 2021
+Midlands	Erewash	Ilkeston Community Hospital CDC	6 Dec 2021
+Midlands	Wyre Forest	Kidderminster Treatment Centre CDC	15 Aug 2021
+Midlands	Leicester East	Leicester CDC	3 Oct 2021
+Midlands	Stratford upon Avon	South Warwickshire CDC	1 Nov 2021
+Midlands	Nuneaton	Warwickshire North CDC	1 Nov 2021
+Midlands	Birmingham	Washwood Heath CDC	13 Dec 2021
+Midlands	Derbyshire Dales	Whitworth Hospital CDC	10 Oct 2021
+North East and Yorkshire	Barnsley Central	Barnsley Glassworks CDC	18 Apr 2022
+North East and Yorkshire	Bishop Auckland	Bishop Auckland CDC	14 Jul 2021
+North East and Yorkshire	Darlington	Bishop Auckland CDC (Darlington Memorial)	14 Jul 2021
+North East and Yorkshire	Durham	Bishop Auckland CDC (North Durham)	14 Jul 2021
+North East and Yorkshire	Blaydon	Blaydon CDC	19 Jul 2021
+North East and Yorkshire	Tynemouth	Blaydon CDC (North Tyneside)	HUB
+North East and Yorkshire	Kingston upon Hull West and Hessle	Humber Coast and Vale CDC	31 Oct 2021
+North East and Yorkshire	Doncaster North	Montagu Hospital CDC	6 Jan 2022
+North East and Yorkshire	North Tyneside	North Tyneside CDC	1 Feb 2022
+North East and Yorkshire	Penrith and the Border	Penrith CDC	4 Oct 2021
+North East and Yorkshire	South Shields	South Tyneside CDC	26 Jul 2021
+North East and Yorkshire	Durham	South Tyneside CDC (Durham Treatment Centre)	14 Jul 2021
+North East and Yorkshire	Hartlepool	Tees Valley CDC	18 Jul 2021
+North East and Yorkshire	Richmond (Yorks)	Tees Valley CDC (Friarige)	HUB
+North East and Yorkshire	Redcar	Tees Valley CDC (Redcar)	HUB
+North East and Yorkshire	Hartlepool	Tees Valley CDC (University Hospital Hartlepool)	HUB
+North West	Bolton South East	Bolton CDC	5 Nov 2021
+North West	Eastham Wirral	Clatterbridge CDC	14 Jul 2021
+North West	Wirral West	Clatterbridge CDC (Arrowe Park)	HUB
+North West	Ellesmere Port and Neston	Ellesmere Port CDC	17 Dec 2021
+North West	Liverpool Riverside	Liverpool Womens Hospital CDC	6 Mar 2022
+North West	Manchester Withington	Manchester And Trafford CDC	1 Nov 2021
+North West	Salford and Eccles	Northern Care Alliance CDC - Multi Site	1 Jul 2021
+North West	Oldham West and Royton	Northern Care Alliance CDC - Oldham	4 Jan 2022
+North West	Preston	Preston Healthport CDC	1 Oct 2021
+North West	Rossendale and Darwen	Rossendale CDC	1 Nov 2021
+North West	St Helens South and Whiston	St Helens CDC	3 Jul 2021
+North West	Weaver Vale	Victoria Infirmary Northwich CDC	4 Oct 2021
+North West	Westmorland and Lonsdale	Westmorland CDC	21 Jul 2021
+North West	Blackpool North and Cleveleys	Whitegate Drive CDC	2 Aug 2021
+South East	Aldershot	Aldershot Centre For Health CDC	4 Oct 2021
+South East	Chesham and Amersham	Amersham Community Hospital CDC	18 Oct 2021
+South East	Bexhill and Battle	Bexhill Community Hospital CDC	15 Nov 2021
+South East	Bognor Regis	Bognor CDC	27 Nov 2021
+South East	Dover	Buckland Community Hospital CDC	1 Oct 2021
+South East	Reigate	East Surrey CDC	1 May 2022
+South East	Brighton Kemptown	Falmer Community Stadium CDC	21 Nov 2021
+South East	New Forest West	Lymington New Forest Hospital CDC	1 Nov 2021
+South East	Maidstone and Weald	Maidstone And Tunbridge Wells Hospital CDC	30 Sep 2021
+South East	SW Surrey	Milford Community Hospital CDC	27 Jun 2022
+South East	Oxford East	Oxford CDC	1 Oct 2021
+South East	Mid Sussex	Queen Victoria Hospital CDC	14 Jul 2021
+South East	Windsor	Slough CDC	1 Oct 2021
+South East	Worthing and Shoreham	Southlands Hospital CDC	7 Nov 2021
+South East	Portsmouth North	St Marys Community Hospital CDC	25 Oct 2021
+South East	Newbury	West Berkshire Community Hospital CDC	1 Oct 2021
+South East	Woking	Woking Community Hospital CDC	1 Apr 2022
+South West	Weston Super Mare	BNSGG (Phase 1) Weston CDC	8 Sep 2021
+South West	Bath	BSW Banes Locality CDC	22 Nov 2021
+South West	Poole	CDC Poole at Dorset Health Village	10 Dec 2021
+South West	West Dorset	CDC Poole (Dorchester)	HUB
+South West	Dorset	CDC Poole (Poole)	HUB
+South West	North Cornwall	Cios Bodmin CDC	13 Sep 2021
+South West	St Ives	Cios West Cornwall CDC	4 Apr 2022
+South West	Exeter	Devon Exeter Nightingale CDC	1 Jul 2021
+South West	Gloucester	Gloucestershire Community CDC	4 Oct 2021
+South West	Gloucester	Gloucestershire Quayside CDC	14 Dec 2021
+South West	Taunton Deane	Somerset Community CDC	24 Jul 2021
+South West	Taunton Deane	Somerset West CDC	26 Sep 2021
