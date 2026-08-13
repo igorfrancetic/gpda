@@ -69,9 +69,3 @@ rather than by position.
 
 Ultrasound of the kidney or bladder is the one published test group the
 guidance does not name, and is reported throughout as a comparator.
-```
-
-`review/verify.py`, `review/capacity_analysis.py`, `review/robustness.do` and
-the capacity section of `review/practice_panel.py` document that superseded
-analysis and require the replication package to run. Nothing in the current
-paper depends on them.
