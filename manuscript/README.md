@@ -7,7 +7,7 @@
 | `BJR_manuscript.docx` | Manuscript. Structured abstract (192 words), Advances in knowledge, IMRAD, declarations, Table 1, both figures, 12 references. Main text ~1,485 words. |
 | `BJR_Fig1.png` / `.pdf` | GP direct referrals as a share of all cancer-detection imaging, April 2018 – March 2025 |
 | `BJR_Fig2.png` / `.pdf` | Adjusted change in activity and in median request-to-test wait, by modality |
-| `bjrfigs.py` | Generates both figures from the CSVs below |
+| `bjrfigs.py` | Python version of both figures; `stata/did_pipeline.do` section 09 draws the same two |
 | `bjr_fig1.csv`, `bjr_fig2.csv` | Figure inputs, derived from `../review/results/panel_from_raw.csv` |
 
 Figures are 300 dpi PNG plus vector PDF. Convert to TIFF at submission if the
@@ -46,8 +46,9 @@ Reproduce with `do stata/did_pipeline.do`, or in Python with
 2. **Run the Stata pipeline.** `stata/did_pipeline.do` is self-contained: it
    imports the raw published spreadsheets from `datain/`, builds the panel,
    estimates every model in the paper, runs the community diagnostic centre
-   check and the Callaway–Sant'Anna robustness, and writes the tables and
-   figures. Nothing else is needed — no derived `.dta` files, no Python.
+   check and the Callaway–Sant'Anna robustness, and writes the tables and all
+   three figures — Figure 1, Figure 2 and the event-study plot. Nothing else is
+   needed: no derived `.dta` files, no Python.
 
    It has **not been executed** (no Stata in the environment it was written
    in), so treat it as unverified until you run it. Every section carries its

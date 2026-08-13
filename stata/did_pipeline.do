@@ -489,7 +489,122 @@ restore
 
 
 * ===========================================================================
-* 09. Export tables
+* 09. Manuscript figures
+* ===========================================================================
+* Figure 1: GP direct referrals as a share of all cancer-detection imaging.
+* Figure 2: activity and waiting-time estimates by test group, side by side.
+* Both are the figures printed in the paper. The Python in manuscript/ draws
+* the same two from the same numbers; either is sufficient.
+
+* --------------------------- Figure 1 -------------------------------------
+preserve
+    use "stata/dataout/did_analysis.dta", clear
+    keep if grp == 0 & outcome == 1              // pooled covered groups, counts
+    collapse (sum) y, by(yearmonth gp)
+    reshape wide y, i(yearmonth) j(gp)
+    rename y0 nongp
+    rename y1 gpev
+    gen double share = 100 * gpev / (gpev + nongp)
+
+    quietly summarize share if inrange(yearmonth, tm(2018m4), tm(2020m2))
+    local premean = r(mean)
+    quietly summarize share if yearmonth >= `announce'
+    local postmean = r(mean)
+    gen double preline  = `premean'  if inrange(yearmonth, tm(2018m4), tm(2020m2))
+    gen double postline = `postmean' if yearmonth >= `announce'
+
+    * shaded band over the pandemic disruption
+    gen double bandlo = 5
+    gen double bandhi = 35
+
+    twoway ///
+        (rarea bandlo bandhi yearmonth if inrange(yearmonth, `covidlo', `covidhi'), ///
+             color(gs14) lwidth(none)) ///
+        (line share yearmonth, lcolor(navy) lwidth(medthick)) ///
+        (line preline yearmonth, lcolor(gs6) lwidth(medthick)) ///
+        (line postline yearmonth, lcolor(orange_red) lwidth(medthick)) ///
+        , ///
+        xline(`announce', lcolor(orange_red) lpattern(dash)) ///
+        ytitle("GP direct referrals as % of all" "cancer-detection imaging events") ///
+        xtitle("") ylabel(10(5)30, angle(0) nogrid) ///
+        xlabel(`=tm(2018m4)'(12)`=tm(2025m3)', format(%tmCCYY) angle(0)) ///
+        legend(order(2 "Monthly share" 3 "Pre-pandemic mean" 4 "Post-announcement mean") ///
+               rows(1) region(lstyle(none))) ///
+        graphregion(color(white)) plotregion(color(white)) ///
+        note("Shaded band: pandemic disruption, excluded from all models." ///
+             "Dashed line: policy announcement, November 2022.")
+    graph export "stata/figures/figure1_gp_share.png", replace width(2200)
+    graph export "stata/figures/figure1_gp_share.pdf", replace
+restore
+
+* --------------------------- Figure 2 -------------------------------------
+* Collect the by-group estimates that sections 04 and 05 already stored, and
+* convert log points to percentage change.
+tempname fh
+tempfile figdata
+postfile `fh' byte(panel row) double(est lo hi) using "`figdata'", replace
+
+local k = 1
+foreach e in act_mri act_ct act_xray act_us2 act_us1 {
+    quietly estimates restore `e'
+    local b  = _b[postgp]
+    local se = _se[postgp]
+    post `fh' (1) (`k') (100*(exp(`b')-1)) ///
+              (100*(exp(`b'-1.96*`se')-1)) (100*(exp(`b'+1.96*`se')-1))
+    local ++k
+}
+local k = 1
+foreach e in wait_1 wait_2 wait_3 wait_4 wait_5 {
+    quietly estimates restore `e'
+    local b  = _b[postgp]
+    local se = _se[postgp]
+    post `fh' (2) (`k') (100*(exp(`b')-1)) ///
+              (100*(exp(`b'-1.96*`se')-1)) (100*(exp(`b'+1.96*`se')-1))
+    local ++k
+}
+postclose `fh'
+
+preserve
+    use "`figdata'", clear
+    * rows run top to bottom in the paper, so reverse for plotting
+    gen byte ypos = 6 - row
+    label define rowlab 5 "Brain MRI" 4 "CT chest/abdomen" 3 "Chest radiography" ///
+                        2 "Ultrasound abdo/pelvis" 1 "Ultrasound kidney/bladder"
+    label values ypos rowlab
+    gen byte sig = (lo > 0 | hi < 0)
+
+    twoway ///
+        (rcap lo hi ypos if panel == 1 & !sig, horizontal lcolor(gs8)) ///
+        (rcap lo hi ypos if panel == 1 &  sig, horizontal lcolor(navy)) ///
+        (scatter ypos est if panel == 1 & !sig, msymbol(O) mcolor(gs8)) ///
+        (scatter ypos est if panel == 1 &  sig, msymbol(O) mcolor(navy)) ///
+        , xline(0, lcolor(gs10)) ///
+        ylabel(1(1)5, valuelabel angle(0) nogrid) ytitle("") ///
+        xtitle("Adjusted % change, GP vs other referrals") ///
+        title("Imaging activity", size(medsmall) justification(left)) ///
+        legend(off) graphregion(color(white)) plotregion(color(white)) ///
+        name(g_act, replace)
+
+    twoway ///
+        (rcap lo hi ypos if panel == 2 & !sig, horizontal lcolor(gs8)) ///
+        (rcap lo hi ypos if panel == 2 &  sig, horizontal lcolor(orange_red)) ///
+        (scatter ypos est if panel == 2 & !sig, msymbol(O) mcolor(gs8)) ///
+        (scatter ypos est if panel == 2 &  sig, msymbol(O) mcolor(orange_red)) ///
+        , xline(0, lcolor(gs10)) ///
+        ylabel(1(1)5, valuelabel labcolor(none) tlcolor(none) nogrid) ytitle("") ///
+        xtitle("Adjusted % change, GP vs other referrals") ///
+        title("Median wait (request to test)", size(medsmall) justification(left)) ///
+        legend(off) graphregion(color(white)) plotregion(color(white)) ///
+        name(g_wait, replace)
+
+    graph combine g_act g_wait, rows(1) graphregion(color(white)) xsize(9) ysize(4)
+    graph export "stata/figures/figure2_by_test_group.png", replace width(2400)
+    graph export "stata/figures/figure2_by_test_group.pdf", replace
+restore
+
+
+* ===========================================================================
+* 10. Export tables
 * ===========================================================================
 esttab act_all act_mri act_ct act_xray act_us2 act_us1 ///
     using "stata/tables/table1_activity.rtf", replace ///

@@ -38,7 +38,8 @@ do stata/did_pipeline.do
 
 It imports the published tables, builds the panel, estimates every model,
 runs the community diagnostic centre check and the Callaway–Sant'Anna
-robustness, and writes the tables and figures. It needs `reghdfe`, `ftools`,
+robustness, and writes the tables and all three figures — Figure 1, Figure 2
+and the event-study plot — into `stata/tables/` and `stata/figures/`. It needs `reghdfe`, `ftools`,
 `estout`, `coefplot`, `csdid` and `drdid` from SSC.
 
 A Python implementation of the same analysis is in `review/`, which is what
