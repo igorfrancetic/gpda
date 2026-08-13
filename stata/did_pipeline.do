@@ -1,23 +1,30 @@
 *! did_pipeline.do
-*! Stata pipeline for the BJR Short Communication
+*! Complete, self-contained Stata pipeline for the BJR Short Communication
 *! "More tests, not faster tests: GP direct access to cancer diagnostic
-*!  imaging in England, 2018-2023"
+*!  imaging in England, 2018-2025"
 *!
-*! Written linearly: no user-written programs, no abstraction. Every analysis
-*! is a single estimation command against one long panel built in section 02,
-*! selected with an -if- condition. Read top to bottom.
+*! Runs end to end from the raw published spreadsheets in datain/. Nothing
+*! else is required: it imports the NHS England Diagnostic Imaging Dataset
+*! tables, builds the panel, estimates every model in the paper, and writes
+*! the tables and figures.
 *!
-*! Counterpart of review/did_analysis.py. Expected results are given as
-*! comments above each block; a mismatch means the pipelines have diverged.
+*! Written linearly: no user-written programs. After the panel is built in
+*! section 02, every analysis is a single estimation command selected with an
+*! -if- condition. Read top to bottom.
 *!
-*! ESTIMATOR. Two-way fixed effects is the PRIMARY estimator throughout
-*! (sections 03-06). Treatment timing here is common rather than staggered and
-*! the comparator series are never treated, so TWFE recovers the ATT without
-*! the weighting problems that arise under staggered adoption. TWFE also
-*! admits GP-specific calendar-month controls, which matters because
-*! seasonality is the dominant nuisance in these data. Callaway-Sant'Anna
-*! (section 07) is reported as a ROBUSTNESS CHECK confirming the main result,
-*! not as the headline.
+*! DESIGN. GP direct referrals are the treated series; referrals from all
+*! other sources to the SAME trust, in the SAME test group and month, are the
+*! control. Source setting is published as "All" and "GP Direct Access", so
+*! for counts the control is All minus GP. Medians cannot be differenced, so
+*! for waiting times the comparator is the All median, which still contains GP
+*! activity and therefore attenuates those estimates towards zero.
+*!
+*! ESTIMATOR. Two-way fixed effects is primary (sections 03-06). Treatment
+*! timing is common rather than staggered and the comparator series are never
+*! treated, so TWFE recovers the ATT without the weighting problems of
+*! staggered adoption, and it admits GP-specific calendar-month controls,
+*! which matters because seasonality is the dominant nuisance here.
+*! Callaway-Sant'Anna (section 08) is a robustness check, not the headline.
 *!
 *! Requires:
 *!     ssc install reghdfe, replace
@@ -31,6 +38,7 @@
 
 clear all
 set more off
+set varabbrev off
 version 15
 
 
@@ -44,250 +52,276 @@ cap mkdir "stata/figures"
 
 * NHS England's guidance names, as the minimum direct access set: chest x-ray,
 * CT chest, CT abdomen and pelvis, ultrasound abdomen and pelvis, brain MRI.
-* Chest x-ray IS covered and must NOT be used as a control modality.
-local announce  = tm(2022m11)   // policy announcement
-local seriesend = tm(2023m11)   // December 2023 onward is materially incomplete
-local covidlo   = tm(2020m3)    // pandemic disruption
-local covidhi   = tm(2021m3)
-local refmonth  = tm(2022m10)   // event-study reference month
+* Chest x-ray IS covered and must NOT be used as a control test group.
+* Ultrasound of the kidney or bladder is NOT named, and serves as a comparator.
+local announce = tm(2022m11)   // policy announcement
+local covidlo  = tm(2020m3)    // pandemic disruption, dropped from all models
+local covidhi  = tm(2021m3)
+local refmonth = tm(2022m10)   // event-study reference month
+local truncate = tm(2023m11)   // earlier cut-off, reported as sensitivity
 
 
 * ===========================================================================
-* 01. Append the financial-year files into a trust-month panel
+* 01. Import the published DID tables
 * ===========================================================================
-tempfile master
+* Table 4 = counts, Table 5 = median days request to test, for the groups of
+* tests suitable for diagnosing cancer, by body site, provider, month and
+* source setting.
+*
+* The header row is not in a fixed position: Table 4 uses row 13 throughout,
+* Table 5 uses row 14 except in 2022-23 where it uses row 13. Everything below
+* is therefore located by content, never by position. Sheets are imported as
+* strings so the header row can be read before anything is destrung.
+
+tempfile raw
 clear
-save `master', replace emptyok
+save `raw', replace emptyok
 
-foreach fy in 2018m4-2019m3 2019m4-2020m3 2020m4-2021m3 ///
-              2021m4-2022m3 2022m4-2023m3 2023m4-2024m3 {
-    display as text "appending `fy'"
-    use "data/`fy'.dta", clear
-    * the 2018-19 file carries fewer variables than later years; append aligns
-    append using `master', force
-    save `master', replace
+foreach folder in 2018_19 2019_20 2020_21 2021_22 2022_23 2023_24 2024-25 {
+
+    * financial year start, from the folder name
+    local fystart = real(substr("`folder'", 1, 4))
+
+    foreach tbl in 4 5 {
+        if `tbl' == 4  local vname events
+        if `tbl' == 5  local vname wait
+
+        local files : dir "datain/raw_trust/`folder'" files "DID-Table-`tbl'-*.xlsx"
+        foreach f of local files {
+            display as text "  `folder'  Table `tbl'  `f'"
+            import excel using "datain/raw_trust/`folder'/`f'", ///
+                sheet("Provider") allstring clear
+
+            * ---- locate the header row: the one carrying "Org Code" ----
+            gen long _row = _n
+            gen byte _hdr = 0
+            foreach v of varlist _all {
+                capture confirm string variable `v'
+                if !_rc  quietly replace _hdr = 1 if `v' == "Org Code"
+            }
+            quietly summarize _row if _hdr == 1
+            local hr = r(min)
+            if missing("`hr'") {
+                display as error "  no header row in `f' -- skipped"
+                continue
+            }
+
+            * ---- map column letters to fields, from that header row ----
+            local vreg ""
+            local vcode ""
+            local vtest ""
+            local vsrc ""
+            foreach m in Apr May Jun Jul Aug Sep Oct Nov Dec Jan Feb Mar {
+                local col`m' ""
+            }
+            foreach v of varlist _all {
+                capture confirm string variable `v'
+                if _rc  continue
+                local val = `v'[`hr']
+                if "`val'" == "Region"          local vreg  `v'
+                if "`val'" == "Org Code"        local vcode `v'
+                if "`val'" == "Test"            local vtest `v'
+                if "`val'" == "Source setting"  local vsrc  `v'
+                foreach m in Apr May Jun Jul Aug Sep Oct Nov Dec Jan Feb Mar {
+                    if "`val'" == "`m'"  local col`m' `v'
+                }
+            }
+
+            keep if _row > `hr'
+            keep `vreg' `vcode' `vtest' `vsrc' ///
+                 `colApr' `colMay' `colJun' `colJul' `colAug' `colSep' ///
+                 `colOct' `colNov' `colDec' `colJan' `colFeb' `colMar'
+
+            rename `vreg'  regioncode
+            rename `vcode' orgcode
+            rename `vtest' test
+            rename `vsrc'  src
+            foreach m in Apr May Jun Jul Aug Sep Oct Nov Dec Jan Feb Mar {
+                rename `col`m'' v`m'
+                quietly destring v`m', replace force
+            }
+
+            * the "-" org code rows are the ENGLAND totals
+            drop if orgcode == "-" | orgcode == "" | missing(orgcode)
+
+            * ---- wide months to long ----
+            gen long _id = _n
+            reshape long v, i(_id) j(mon) string
+            rename v `vname'
+            drop if missing(`vname')
+
+            gen int monthnum = .
+            local k = 1
+            foreach m in Apr May Jun Jul Aug Sep Oct Nov Dec Jan Feb Mar {
+                local cal = cond(`k' <= 9, `k' + 3, `k' - 9)
+                quietly replace monthnum = `cal' if mon == "`m'"
+                local ++k
+            }
+            gen int yr = cond(monthnum >= 4, `fystart', `fystart' + 1)
+            gen yearmonth = ym(yr, monthnum)
+            format yearmonth %tm
+
+            keep regioncode orgcode test src yearmonth `vname'
+            append using `raw'
+            save `raw', replace
+        }
+    }
 }
-use `master', clear
 
-keep if substr(orgcode, 1, 1) == "R"      // NHS trusts, as in the original paper
-keep if yearmonth <= `seriesend'          // drop the incomplete tail
-isid orgcode yearmonth
-
-egen gp_cov  = rowtotal(gpcdixray gpcdict gpcdimri gpcdiultra2), missing
-egen tot_cov = rowtotal(totalcdixray totalcdict totalcdimri totalcdiultra2), missing
-
-* Self-check against the Python build the manuscript used. If this fails the
-* two pipelines are not analysing the same data.
-assert _N == 9984
-quietly levelsof orgcode, local(trusts)
-assert `: word count `trusts'' == 160
-quietly summarize gp_cov
-assert reldif(r(sum), 14027250) < 1e-6
-quietly summarize tot_cov
-assert reldif(r(sum), 58494255) < 1e-6
-display as result _n "Self-check passed: 9,984 trust-months, 160 trusts"
-
+use `raw', clear
+* one row per trust-test-source-month, with counts and waits side by side
+collapse (firstnm) regioncode (max) events wait, by(orgcode test src yearmonth)
+keep if substr(orgcode, 1, 1) == "R"          // NHS trusts only
 compress
-save "stata/dataout/did_master.dta", replace
+save "stata/dataout/did_panel_long.dta", replace
+
+display as result _n "Imported panel:"
+quietly levelsof orgcode, local(tr)
+display as result "  trusts: " `: word count `tr''
+quietly summarize yearmonth
+display as result "  months: " %tm r(min) " to " %tm r(max)
 
 
 * ===========================================================================
-* 02. Build the long panel: trust x month x modality x referral source
+* 02. Build the estimation panel: GP series stacked on its comparator
 * ===========================================================================
-* modality  0 = all covered modalities pooled (counts only)
-*           1 = brain MRI
-*           2 = CT chest and abdomen/pelvis
-*           3 = chest radiography
-*           4 = ultrasound abdomen/pelvis
-*           5 = ultrasound kidney/bladder  (NOT named in the guidance)
-*
-* src       1 = GP direct referral            (treated)
-*           2 = non-GP referrals = total - GP (control, COUNTS only)
-*           3 = all referrals                 (control, WAITS only)
-*
-* Two comparators are needed because medians cannot be differenced: for counts
-* the control is total minus GP, but for waiting times only the GP median and
-* the all-referrals median are published. Wait estimates are therefore
-* attenuated, because the comparator still contains GP activity.
+use "stata/dataout/did_panel_long.dta", clear
 
-tempfile long
-clear
-save `long', replace emptyok
+gen byte covered = inlist(test, "Chest (X-ray)", "Chest and/or abdomen (CT)", ///
+                                "Brain (MRI)", "Abdomen and/or pelvis (Ultrasound)")
+gen byte comparator = (test == "Kidney or Bladder (Ultrasound)")
+keep if covered | comparator
 
-* --- modality 0: the pooled covered aggregate (counts only) ---
-use "stata/dataout/did_master.dta", clear
-keep orgcode yearmonth gp_cov tot_cov
-drop if missing(gp_cov) | missing(tot_cov)
-gen double nongp = tot_cov - gp_cov
-gen byte modality = 0
-preserve
-    keep orgcode yearmonth modality gp_cov
-    rename gp_cov events
-    gen byte src = 1
-    gen double medwait = .
-    tempfile piece
-    save `piece'
-restore
-keep orgcode yearmonth modality nongp
-rename nongp events
-gen byte src = 2
-gen double medwait = .
-append using `piece'
-append using `long'
-save `long', replace
-
-* --- modalities 1-5: counts and waits ---
-local k = 1
-foreach m in mri ct xray ultra2 ultra1 {
-    if "`m'" == "mri"    local gv gpcdimri
-    if "`m'" == "mri"    local tv totalcdimri
-    if "`m'" == "mri"    local gw mrtgpcdimri
-    if "`m'" == "mri"    local tw mrttotalcdimri
-    if "`m'" == "ct"     local gv gpcdict
-    if "`m'" == "ct"     local tv totalcdict
-    if "`m'" == "ct"     local gw mrtgpcdict
-    if "`m'" == "ct"     local tw mrttotalcdict
-    if "`m'" == "xray"   local gv gpcdixray
-    if "`m'" == "xray"   local tv totalcdixray
-    if "`m'" == "xray"   local gw mrtgpcdixray
-    if "`m'" == "xray"   local tw mrttotalcdixray
-    if "`m'" == "ultra2" local gv gpcdiultra2
-    if "`m'" == "ultra2" local tv totalcdiultra2
-    if "`m'" == "ultra2" local gw mrtgpcdiultra2
-    if "`m'" == "ultra2" local tw mrttotalcdiultra2
-    if "`m'" == "ultra1" local gv gpcdiultra1
-    if "`m'" == "ultra1" local tv totalcdiultra1
-    if "`m'" == "ultra1" local gw mrtgpcdiultra1
-    if "`m'" == "ultra1" local tw mrttotalcdiultra1
-
-    * GP series: counts and waits
-    use "stata/dataout/did_master.dta", clear
-    keep orgcode yearmonth `gv' `gw'
-    rename `gv' events
-    rename `gw' medwait
-    gen byte modality = `k'
-    gen byte src = 1
-    append using `long'
-    save `long', replace
-
-    * non-GP counts
-    use "stata/dataout/did_master.dta", clear
-    keep orgcode yearmonth `gv' `tv'
-    drop if missing(`gv') | missing(`tv')
-    gen double events = `tv' - `gv'
-    gen double medwait = .
-    gen byte modality = `k'
-    gen byte src = 2
-    keep orgcode yearmonth modality src events medwait
-    append using `long'
-    save `long', replace
-
-    * all-referral waits
-    use "stata/dataout/did_master.dta", clear
-    keep orgcode yearmonth `tw'
-    rename `tw' medwait
-    gen double events = .
-    gen byte modality = `k'
-    gen byte src = 3
-    append using `long'
-    save `long', replace
-
-    local ++k
-}
-
-use `long', clear
-label define modlab 0 "All covered pooled" 1 "Brain MRI" 2 "CT chest/abdomen" ///
+gen byte grp = .
+replace grp = 1 if test == "Brain (MRI)"
+replace grp = 2 if test == "Chest and/or abdomen (CT)"
+replace grp = 3 if test == "Chest (X-ray)"
+replace grp = 4 if test == "Abdomen and/or pelvis (Ultrasound)"
+replace grp = 5 if comparator
+label define grplab 0 "All covered pooled" 1 "Brain MRI" 2 "CT chest/abdomen" ///
                     3 "Chest radiography" 4 "Ultrasound abdomen/pelvis" ///
                     5 "Ultrasound kidney/bladder (comparator)"
-label values modality modlab
-label define srclab 1 "GP direct" 2 "Non-GP" 3 "All referrals"
-label values src srclab
 
-gen byte gp   = (src == 1)
+* ---- counts: GP, and non-GP = All minus GP ----
+preserve
+    keep orgcode regioncode grp yearmonth src events
+    drop if missing(events)
+    gen str5 srctag = cond(src == "GP Direct Access", "gp", "all")
+    drop src
+    reshape wide events, i(orgcode regioncode grp yearmonth) j(srctag) string
+    rename eventsall ev_all
+    rename eventsgp ev_gp
+    gen double ev_nongp = ev_all - ev_gp
+    keep orgcode regioncode grp yearmonth ev_gp ev_nongp
+    reshape long ev_, i(orgcode regioncode grp yearmonth) j(who) string
+    rename ev_ y
+    gen byte gp = (who == "gp")
+    gen byte outcome = 1                       // 1 = activity
+    drop who
+    tempfile counts
+    save `counts'
+restore
+
+* ---- waits: GP median, and the All median as comparator ----
+keep orgcode regioncode grp yearmonth src wait
+drop if missing(wait)
+gen byte gp = (src == "GP Direct Access")
+rename wait y
+gen byte outcome = 2                           // 2 = median wait
+keep orgcode regioncode grp yearmonth y gp outcome
+append using `counts'
+
+drop if missing(y) | y <= 0
+gen double ly = ln(y)
+
+* pooled covered aggregate for the activity models
+preserve
+    keep if outcome == 1 & inrange(grp, 1, 4)
+    collapse (sum) y, by(orgcode regioncode yearmonth gp outcome)
+    gen byte grp = 0
+    gen double ly = ln(y)
+    tempfile pooled
+    save `pooled'
+restore
+append using `pooled'
+label values grp grplab
+
 gen byte post = yearmonth >= `announce'
 gen byte cm   = month(dofm(yearmonth))
-egen cell     = group(orgcode src modality)
-gen double lev = ln(events)  if events > 0 & !missing(events)
-gen double lwt = ln(medwait) if medwait > 0 & !missing(medwait)
 gen double tlin = yearmonth
+egen cell = group(orgcode gp grp outcome)      // trust x source x group x outcome
 gen postgp = post * gp
 gen tgp    = tlin * gp
 
-* Sample flags for the two counterfactual windows. Diagnostic activity
-* collapsed in 2020-21 and recovered through 2021-22, so a pre-period starting
-* in 2021 uses a depressed baseline and flatters the comparison. The April 2018
-* window is primary; April 2021 is reported as sensitivity.
-gen byte s_recovery = yearmonth >= tm(2021m4)
-gen byte s_precovid = !inrange(yearmonth, `covidlo', `covidhi')
+* pandemic disruption is dropped from every model
+gen byte insample = !inrange(yearmonth, `covidlo', `covidhi')
+
+* NHS England region names, for the community diagnostic centre merge
+gen region = ""
+replace region = "London"                   if regioncode == "Y56"
+replace region = "South West"               if regioncode == "Y58"
+replace region = "South East"               if regioncode == "Y59"
+replace region = "Midlands"                 if regioncode == "Y60"
+replace region = "East of England"          if regioncode == "Y61"
+replace region = "North West"               if regioncode == "Y62"
+replace region = "North East and Yorkshire" if regioncode == "Y63"
 
 compress
-save "stata/dataout/did_long.dta", replace
+save "stata/dataout/did_analysis.dta", replace
 
 
 * ===========================================================================
-* 03. Main DiD, activity in policy-covered modalities  (two-way fixed effects)
+* 03. Main difference-in-differences: activity
 * ===========================================================================
 * i.cm#c.gp lets seasonality differ between the GP and comparator series, so a
 * GP-specific Christmas dip is not read as a policy effect.
 *
-* Expected (review/did_analysis.py):
-*   April 2021 baseline : +14.97%  [ +8.73, +21.57]  p<0.001  N =  8,214
-*   April 2018 baseline : +10.41%  [ +5.76, +15.26]  p<0.001  N = 14,617
+* Expected: +10.07%  [+5.07, +15.32]  p<0.001
 * Coefficients are log points: percentage change = 100*(exp(b)-1).
 
-use "stata/dataout/did_long.dta", clear
+use "stata/dataout/did_analysis.dta", clear
 
 display as txt _n "{hline 78}"
-display as txt "3a. PRIMARY ESTIMATOR (two-way fixed effects)"
-display as txt "    Main DiD, April 2021 baseline (sensitivity window)"
+display as txt "3. MAIN DiD - activity, all covered test groups (PRIMARY RESULT)"
 display as txt "{hline 78}"
-reghdfe lev postgp i.cm#c.gp if modality == 0 & src <= 2 & s_recovery, ///
+reghdfe ly postgp i.cm#c.gp if grp == 0 & outcome == 1 & insample, ///
     absorb(cell yearmonth) vce(cluster orgcode)
-eststo main_recovery
-display as result "  percentage change = " %6.2f 100*(exp(_b[postgp])-1) "%"
-
-display as txt _n "{hline 78}"
-display as txt "3b. PRIMARY ESTIMATOR (two-way fixed effects)"
-display as txt "    Main DiD, April 2018 baseline  [HEADLINE RESULT]"
-display as txt "{hline 78}"
-reghdfe lev postgp i.cm#c.gp if modality == 0 & src <= 2 & s_precovid, ///
-    absorb(cell yearmonth) vce(cluster orgcode)
-eststo main_precovid
+eststo act_all
 display as result "  percentage change = " %6.2f 100*(exp(_b[postgp])-1) "%"
 
 
 * ===========================================================================
-* 04. Activity by modality (April 2018 baseline)
+* 04. Activity by test group
 * ===========================================================================
-* Expected: brain MRI +29.03, CT +14.79, chest x-ray +13.45,
-*           ultrasound abdomen/pelvis +6.12,
-*           ultrasound kidney/bladder +4.14 (comparator, not significant)
+* Expected: brain MRI +35.24, CT +14.86, chest x-ray +12.94,
+*           ultrasound abdomen/pelvis +7.10,
+*           ultrasound kidney/bladder +8.23 (comparator, not significant)
 
 display as txt _n "{hline 78}"
-display as txt "4. Activity by modality"
+display as txt "4. Activity by test group"
 display as txt "{hline 78}"
 
-reghdfe lev postgp i.cm#c.gp if modality == 1 & src <= 2 & s_precovid, ///
+reghdfe ly postgp i.cm#c.gp if grp == 1 & outcome == 1 & insample, ///
     absorb(cell yearmonth) vce(cluster orgcode)
 eststo act_mri
 display as result "  Brain MRI: " %6.2f 100*(exp(_b[postgp])-1) "%"
 
-reghdfe lev postgp i.cm#c.gp if modality == 2 & src <= 2 & s_precovid, ///
+reghdfe ly postgp i.cm#c.gp if grp == 2 & outcome == 1 & insample, ///
     absorb(cell yearmonth) vce(cluster orgcode)
 eststo act_ct
 display as result "  CT chest/abdomen: " %6.2f 100*(exp(_b[postgp])-1) "%"
 
-reghdfe lev postgp i.cm#c.gp if modality == 3 & src <= 2 & s_precovid, ///
+reghdfe ly postgp i.cm#c.gp if grp == 3 & outcome == 1 & insample, ///
     absorb(cell yearmonth) vce(cluster orgcode)
 eststo act_xray
 display as result "  Chest radiography: " %6.2f 100*(exp(_b[postgp])-1) "%"
 
-reghdfe lev postgp i.cm#c.gp if modality == 4 & src <= 2 & s_precovid, ///
+reghdfe ly postgp i.cm#c.gp if grp == 4 & outcome == 1 & insample, ///
     absorb(cell yearmonth) vce(cluster orgcode)
 eststo act_us2
 display as result "  Ultrasound abdomen/pelvis: " %6.2f 100*(exp(_b[postgp])-1) "%"
 
-reghdfe lev postgp i.cm#c.gp if modality == 5 & src <= 2 & s_precovid, ///
+reghdfe ly postgp i.cm#c.gp if grp == 5 & outcome == 1 & insample, ///
     absorb(cell yearmonth) vce(cluster orgcode)
 eststo act_us1
 display as result "  Ultrasound kidney/bladder (comparator): " ///
@@ -297,168 +331,167 @@ display as result "  Ultrasound kidney/bladder (comparator): " ///
 * ===========================================================================
 * 05. Waiting times, median days from request to test
 * ===========================================================================
-* Expected: brain MRI +7.05, CT -1.44, chest x-ray -2.42,
-*           ultrasound abdomen/pelvis +2.25, kidney/bladder -3.09,
-*           pooled across the four covered modalities +5.86 [-0.04, +12.10]
+* The comparator is the All-referrals median, which still contains GP
+* activity, so these estimates are attenuated towards zero.
+*
+* Expected: pooled +3.08 [-1.84, 8.25] p=0.22; brain MRI +3.94, CT -6.40,
+*           chest x-ray -8.69, ultrasound abdomen/pelvis -2.33,
+*           kidney/bladder -10.23. None significant at 5%.
 
 display as txt _n "{hline 78}"
 display as txt "5. Waiting times (median days request to test)"
 display as txt "{hline 78}"
 
-reghdfe lwt postgp i.cm#c.gp if modality == 1 & inlist(src,1,3) & s_precovid, ///
+reghdfe ly postgp i.cm#c.gp if inrange(grp,1,4) & outcome == 2 & insample, ///
     absorb(cell yearmonth) vce(cluster orgcode)
-eststo wait_mri
-display as result "  Brain MRI: " %6.2f 100*(exp(_b[postgp])-1) "%"
-
-reghdfe lwt postgp i.cm#c.gp if modality == 2 & inlist(src,1,3) & s_precovid, ///
-    absorb(cell yearmonth) vce(cluster orgcode)
-eststo wait_ct
-display as result "  CT chest/abdomen: " %6.2f 100*(exp(_b[postgp])-1) "%"
-
-reghdfe lwt postgp i.cm#c.gp if modality == 3 & inlist(src,1,3) & s_precovid, ///
-    absorb(cell yearmonth) vce(cluster orgcode)
-eststo wait_xray
-display as result "  Chest radiography: " %6.2f 100*(exp(_b[postgp])-1) "%"
-
-reghdfe lwt postgp i.cm#c.gp if modality == 4 & inlist(src,1,3) & s_precovid, ///
-    absorb(cell yearmonth) vce(cluster orgcode)
-eststo wait_us2
-display as result "  Ultrasound abdomen/pelvis: " %6.2f 100*(exp(_b[postgp])-1) "%"
-
-reghdfe lwt postgp i.cm#c.gp if modality == 5 & inlist(src,1,3) & s_precovid, ///
-    absorb(cell yearmonth) vce(cluster orgcode)
-eststo wait_us1
-display as result "  Ultrasound kidney/bladder: " %6.2f 100*(exp(_b[postgp])-1) "%"
-
-* Pooled across the four covered modalities: cell already includes modality,
-* so stacking them simply adds modality-specific intercepts.
-reghdfe lwt postgp i.cm#c.gp ///
-    if inlist(modality,1,2,3,4) & inlist(src,1,3) & s_precovid, ///
-    absorb(cell yearmonth) vce(cluster orgcode)
-eststo wait_pooled
-display as result "  POOLED across covered modalities: " ///
+eststo wait_all
+display as result "  POOLED across covered groups: " ///
     %6.2f 100*(exp(_b[postgp])-1) "%  p=" %6.4f 2*normal(-abs(_b[postgp]/_se[postgp]))
 
+forvalues g = 1/5 {
+    reghdfe ly postgp i.cm#c.gp if grp == `g' & outcome == 2 & insample, ///
+        absorb(cell yearmonth) vce(cluster orgcode)
+    eststo wait_`g'
+    display as result "  group `g': " %6.2f 100*(exp(_b[postgp])-1) "%"
+}
+
 
 * ===========================================================================
-* 06. Robustness: placebo announcement, and a differential linear trend
+* 06. Robustness: placebo, differential trend, earlier cut-off
 * ===========================================================================
-* Expected: placebo -1.09% (p=0.68); differential-trend level shift +15.56%
-*           [+8.35, +23.25] with a trend of -0.13% per month
+* Expected: placebo -1.05% (p=0.69); with a differential trend +16.84%
+*           [+9.13, +25.10] and a trend of -0.141% per month; truncating the
+*           series at November 2023 gives +10.66% [+6.17, +15.35].
 
 display as txt _n "{hline 78}"
 display as txt "6. Robustness"
 display as txt "{hline 78}"
 
-gen byte placebo   = yearmonth >= tm(2021m11)
+gen byte placebo = yearmonth >= tm(2021m11)
 gen placebogp = placebo * gp
-reghdfe lev placebogp i.cm#c.gp ///
-    if modality == 0 & src <= 2 & s_precovid & yearmonth < `announce', ///
+reghdfe ly placebogp i.cm#c.gp ///
+    if grp == 0 & outcome == 1 & insample & yearmonth < `announce', ///
     absorb(cell yearmonth) vce(cluster orgcode)
 display as result "  Placebo announcement Nov 2021: " ///
     %6.2f 100*(exp(_b[placebogp])-1) "%  p=" ///
     %6.4f 2*normal(-abs(_b[placebogp]/_se[placebogp]))
 
-reghdfe lev postgp tgp i.cm#c.gp if modality == 0 & src <= 2 & s_precovid, ///
+reghdfe ly postgp tgp i.cm#c.gp if grp == 0 & outcome == 1 & insample, ///
     absorb(cell yearmonth) vce(cluster orgcode)
-display as result "  Level shift allowing a differential trend: " ///
-    %6.2f 100*(exp(_b[postgp])-1) "%"
-display as result "  Differential trend per month: " %6.3f 100*(exp(_b[tgp])-1) "%"
+display as result "  Allowing a differential trend: " %6.2f 100*(exp(_b[postgp])-1) "%"
+display as result "    differential trend per month: " %6.3f 100*(exp(_b[tgp])-1) "%"
+
+reghdfe ly postgp i.cm#c.gp ///
+    if grp == 0 & outcome == 1 & insample & yearmonth <= `truncate', ///
+    absorb(cell yearmonth) vce(cluster orgcode)
+display as result "  Truncated at Nov 2023: " %6.2f 100*(exp(_b[postgp])-1) "%"
 
 
 * ===========================================================================
-* 07. ROBUSTNESS: Callaway and Sant'Anna (2021) event study
+* 07. Community diagnostic centres as a competing explanation
 * ===========================================================================
-* This section confirms the primary two-way fixed effects results above; it is
-* not the headline estimate. Treatment timing here is COMMON, not staggered:
-* every treated series (GP referrals) is treated in November 2022, and the
-* comparator series are never treated. The negative-weighting and
-* forbidden-comparison problems that motivate Callaway-Sant'Anna over two-way
-* fixed effects therefore do not arise in this design, and the two agree.
-* What csdid adds is a clean never-treated comparison group, the doubly robust
-* estimator, and uniform confidence bands across event times. What it gives up
-* is the ability to condition on GP-specific seasonality, which is why the
-* primary specification remains two-way fixed effects (see 07c).
+* Sivey and Wen (2024) show CDCs raised diagnostic volume with no effect on
+* waiting times, which makes them the obvious confounder. Two things answer it.
 *
-* Two practical points:
-*   (a) csdid needs consecutive time periods. Dropping the pandemic months
-*       leaves a 13-month hole, so time is re-indexed. Post-announcement event
-*       times are unaffected because the gap is entirely pre-period, but
-*       pre-period event-time labels do not correspond to calendar months.
-*       The April 2021 window is contiguous and is used for the figure.
-*   (b) csdid carries no calendar-month controls, so GP-specific seasonality
-*       shows up as noise in the monthly estimates. Section 07c repeats the
-*       estimation on a seasonally adjusted outcome.
-*   (c) the panel is mildly unbalanced (a trust with no positive count in a
-*       month contributes no row). csdid handles this, but if it objects, add
-*       the -long2- option, which anchors every comparison to the period before
-*       treatment rather than to the varying base period.
+* Timing: all 79 dated first-wave CDCs opened between July 2021 and August
+* 2022, every one before the announcement, so they cannot generate a step at
+* it. Direct test: regional CDC exposure leaves the estimate intact.
 *
-* Expected simple aggregation (ATT averaged over post periods):
-*   April 2021 window, raw outcome                 approximately +11.4%
-*   April 2021 window, seasonally adjusted         approximately  +9.1%
-*   April 2018 window, seasonally adjusted         approximately  +9.1%
-* compared with the two-way fixed effects estimate of +10.4%.
+* Expected: announcement +13.50% [+5.51, +22.10] once exposure is included,
+*           exposure itself -2.14% (p=0.21).
 
 display as txt _n "{hline 78}"
-display as txt "7. ROBUSTNESS: Callaway-Sant'Anna event study"
+display as txt "7. Community diagnostic centre exposure"
 display as txt "{hline 78}"
 
-* --- 07a. contiguous April 2021 window, raw outcome ---
-use "stata/dataout/did_long.dta", clear
-keep if modality == 0 & src <= 2 & s_recovery & !missing(lev)
+preserve
+    import delimited "datain/cdc/cdc_operational_2022-08-14.tsv", ///
+        delimiter(tab) varnames(1) clear stringcols(_all)
+    gen livedate = date(live_date, "DMY")           // "HUB" rows become missing
+    drop if missing(livedate)
+    gen cdcmonth = mofd(livedate)
+    keep region cdcmonth
+    tempfile cdc
+    save `cdc'
+restore
 
-gen int tt = yearmonth - tm(2021m4) + 1              // consecutive 1..N
-gen int gvar = cond(gp == 1, tm(2022m11) - tm(2021m4) + 1, 0)  // 0 = never treated
+* cumulative CDCs live in each region by month
+preserve
+    use `cdc', clear
+    gen n = 1
+    collapse (sum) opened = n, by(region cdcmonth)
+    rename cdcmonth yearmonth
+    tempfile opencount
+    save `opencount'
+restore
 
-csdid lev, ivar(cell) time(tt) gvar(gvar) method(dripw) cluster(orgcode) agg(event)
-estat simple
-estat event
+merge m:1 region yearmonth using `opencount', keep(master match) nogenerate
+replace opened = 0 if missing(opened)
+sort region yearmonth
+by region: gen double ncdc = sum(opened) if !missing(region)
+quietly summarize ncdc
+gen double ncdc_z = (ncdc - r(mean)) / r(sd)
+gen cdcgp = ncdc_z * gp
 
-csdid_plot, style(rspike) ///
-    title("GP direct referrals vs never-treated comparator") ///
-    ytitle("ATT, log points") xtitle("Months since announcement")
-graph export "stata/figures/cs_event_study.png", replace width(2200)
-
-* --- 07b. April 2018 window, raw outcome ---
-* Time is re-indexed across the pandemic gap; pre-period event-time labels are
-* therefore not calendar months. Post-period estimates are unaffected.
-use "stata/dataout/did_long.dta", clear
-keep if modality == 0 & src <= 2 & s_precovid & !missing(lev)
-egen int tt = group(yearmonth)
-quietly summarize tt if yearmonth == tm(2022m11)
-local gt = r(min)
-gen int gvar = cond(gp == 1, `gt', 0)
-
-csdid lev, ivar(cell) time(tt) gvar(gvar) method(dripw) cluster(orgcode) agg(event)
-estat simple
-
-* --- 07c. seasonally adjusted outcome ---
-* Seasonal factors are estimated from PRE-announcement months only, separately
-* for the GP and comparator series, so the adjustment cannot absorb any part of
-* the treatment effect.
-use "stata/dataout/did_long.dta", clear
-keep if modality == 0 & src <= 2 & s_precovid & !missing(lev)
-
-bysort cell: egen double cellmean = mean(lev)
-gen double dev = lev - cellmean
-bysort gp cm: egen double sfac = mean(cond(yearmonth < `announce', dev, .))
-gen double lev_adj = lev - sfac
-
-egen int tt = group(yearmonth)
-quietly summarize tt if yearmonth == tm(2022m11)
-local gt = r(min)
-gen int gvar = cond(gp == 1, `gt', 0)
-
-csdid lev_adj, ivar(cell) time(tt) gvar(gvar) method(dripw) cluster(orgcode) agg(event)
-estat simple
-estat event
+reghdfe ly postgp cdcgp i.cm#c.gp if grp == 0 & outcome == 1 & insample, ///
+    absorb(cell yearmonth) vce(cluster orgcode)
+display as result "  Announcement: " %6.2f 100*(exp(_b[postgp])-1) "%"
+display as result "  CDC exposure (per SD): " %6.2f 100*(exp(_b[cdcgp])-1) ///
+    "%  p=" %6.4f 2*normal(-abs(_b[cdcgp]/_se[cdcgp]))
 
 
 * ===========================================================================
-* 08. Export tables
+* 08. Robustness: Callaway and Sant'Anna (2021) event study
 * ===========================================================================
-esttab main_precovid act_mri act_ct act_xray act_us2 act_us1 ///
+* Confirms section 03; it is not the headline. Treatment timing is common and
+* the comparator series are never treated, so the negative-weighting problem
+* that motivates this estimator does not arise. csdid carries no
+* calendar-month controls, so GP-specific seasonality shows up as noise in the
+* monthly estimates; section 08b repeats it on a seasonally adjusted outcome.
+*
+* csdid needs consecutive periods. Dropping the pandemic leaves a gap, so time
+* is re-indexed; post-announcement event times are unaffected because the gap
+* is entirely pre-period.
+
+display as txt _n "{hline 78}"
+display as txt "8. ROBUSTNESS: Callaway-Sant'Anna"
+display as txt "{hline 78}"
+
+preserve
+    keep if grp == 0 & outcome == 1 & insample
+    egen int tt = group(yearmonth)
+    quietly summarize tt if yearmonth == `announce'
+    local gt = r(min)
+    gen int gvar = cond(gp == 1, `gt', 0)      // 0 = never treated
+    egen int unit = group(orgcode gp)
+
+    csdid ly, ivar(unit) time(tt) gvar(gvar) method(dripw) ///
+        cluster(orgcode) agg(event)
+    estat simple
+
+    * --- 08b. seasonally adjusted, factors from pre-announcement months only
+    bysort unit: egen double unitmean = mean(ly)
+    gen double dev = ly - unitmean
+    gen double devpre = dev if yearmonth < `announce'
+    bysort gp cm: egen double sfac = mean(devpre)
+    gen double ly_adj = ly - sfac
+
+    csdid ly_adj, ivar(unit) time(tt) gvar(gvar) method(dripw) ///
+        cluster(orgcode) agg(event)
+    estat simple
+    estat event
+
+    csdid_plot, style(rspike) ///
+        title("GP direct referrals vs never-treated comparator") ///
+        ytitle("ATT, log points") xtitle("Months since announcement")
+    graph export "stata/figures/cs_event_study.png", replace width(2200)
+restore
+
+
+* ===========================================================================
+* 09. Export tables
+* ===========================================================================
+esttab act_all act_mri act_ct act_xray act_us2 act_us1 ///
     using "stata/tables/table1_activity.rtf", replace ///
     keep(postgp) b(3) ci(3) star(* 0.05 ** 0.01 *** 0.001) ///
     mtitle("All covered" "Brain MRI" "CT" "Chest x-ray" "US abdo/pelvis" ///
@@ -466,7 +499,7 @@ esttab main_precovid act_mri act_ct act_xray act_us2 act_us1 ///
     title("Adjusted change in GP direct referral imaging activity") ///
     addnote("Log points; percentage change = 100*(exp(b)-1). Clustered by trust.")
 
-esttab wait_pooled wait_mri wait_ct wait_xray wait_us2 wait_us1 ///
+esttab wait_all wait_1 wait_2 wait_3 wait_4 wait_5 ///
     using "stata/tables/table1_waits.rtf", replace ///
     keep(postgp) b(3) ci(3) star(* 0.05 ** 0.01 *** 0.001) ///
     mtitle("Pooled" "Brain MRI" "CT" "Chest x-ray" "US abdo/pelvis" ///
