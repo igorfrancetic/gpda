@@ -4,11 +4,11 @@
 
 | File | Contents |
 |---|---|
-| `BJR_manuscript.docx` | Manuscript. Structured abstract (194 words), Advances in knowledge, IMRAD, declarations, Table 1, both figures, 12 references. Main text ~1,260 words. |
-| `BJR_Fig1.png` / `.pdf` | GP direct referrals as a share of all cancer-detection imaging, April 2018 – November 2023 |
+| `BJR_manuscript.docx` | Manuscript. Structured abstract (192 words), Advances in knowledge, IMRAD, declarations, Table 1, both figures, 12 references. Main text ~1,485 words. |
+| `BJR_Fig1.png` / `.pdf` | GP direct referrals as a share of all cancer-detection imaging, April 2018 – March 2025 |
 | `BJR_Fig2.png` / `.pdf` | Adjusted change in activity and in median request-to-test wait, by modality |
 | `bjrfigs.py` | Generates both figures from the CSVs below |
-| `bjr_fig1.csv`, `bjr_fig2.csv` | Figure inputs, written by `../review/did_analysis.py` |
+| `bjr_fig1.csv`, `bjr_fig2.csv` | Figure inputs, derived from `../review/results/panel_from_raw.csv` |
 
 Figures are 300 dpi PNG plus vector PDF. Convert to TIFF at submission if the
 journal requires it (`sips -s format tiff`, ImageMagick `convert`, or export the
@@ -34,8 +34,8 @@ announcement −1.1% (p=0.69); with a differential linear trend +16.8%;
 truncated at November 2023 +10.7%; adjusting for regional community diagnostic
 centre exposure +13.5%, with the exposure term itself null.
 
-Reproduce with `python review/did_analysis.py`; full output in
-`review/results/did_analysis_output.txt`.
+Reproduce with `do stata/did_pipeline.do`, or in Python with
+`python review/build_panel.py && python review/did_analysis.py`.
 
 ## Before submitting
 
@@ -64,6 +64,7 @@ Reproduce with `python review/did_analysis.py`; full output in
 
 3. **Complete the STROBE checklist** and attach it as supplementary material —
    the Methods section already states that it was followed.
-4. **Decide the relationship to the earlier practice-level paper.** This
-   analysis supersedes it: it uses a control series, a pre-pandemic baseline and
-   the correct modality set. See `../review/REVIEW.md` for what changed and why.
+4. **The earlier practice-level analysis is superseded** and should not be
+   submitted alongside this: it had no control series, used a truncated extract
+   and the wrong modality set, and its capacity finding does not survive.
+   See `../review/REVIEW.md` for what changed and why.

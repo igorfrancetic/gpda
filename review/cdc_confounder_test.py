@@ -30,24 +30,22 @@ from did_analysis import areg, pct
 import pandas as pd, numpy as np
 from scipy import stats
 
-# region for each trust, from the imaging asset collection
-cap=pd.read_excel('replication/datain/National-Imaging-Data-Collection-Asset-Count-2022-23-v1.xlsx',
-                  sheet_name='ICB, Imaging Network and Trust', header=13, usecols='B:S')
-reg=cap[['Organisation Code','Region']].dropna().rename(columns={'Organisation Code':'orgcode','Region':'region'})
-reg=reg.drop_duplicates('orgcode')
-
+# Region now travels with the panel (review/build_panel.py), so this script
+# has no dependency on the original replication package.
 cdc=pd.read_csv('datain/cdc/cdc_operational_2022-08-14.tsv',sep='\t')
 cdc['dt']=pd.to_datetime(cdc.live_date,format='%d %b %Y',errors='coerce')
 cdc=cdc.dropna(subset=['dt'])
 
 P=pd.read_csv('review/results/panel_from_raw.csv',parse_dates=['ym'])
 COV=['Chest (X-ray)','Chest and/or abdomen (CT)','Brain (MRI)','Abdomen and/or pelvis (Ultrasound)']
+regmap=P.dropna(subset=['region']).groupby('orgcode').region.first()
 w=P[P.test.isin(COV)].pivot_table(index=['orgcode','ym'],columns='src',values='events',aggfunc='sum').reset_index()
 w.columns.name=None; w['cmp']=w['All']-w['GP Direct Access']
 a=w[['orgcode','ym','GP Direct Access']].rename(columns={'GP Direct Access':'y'}).assign(gp=1)
 b=w[['orgcode','ym','cmp']].rename(columns={'cmp':'y'}).assign(gp=0)
 L=pd.concat([a,b]).dropna(subset=['y']); L=L[L.y>0].copy()
-L=L.merge(reg,on='orgcode',how='left').dropna(subset=['region'])
+L['region']=L.orgcode.map(regmap)
+L=L.dropna(subset=['region'])
 L['ly']=np.log(L.y); L['post']=(L.ym>='2022-11-01').astype(float)
 L['cell']=L.orgcode+'_'+L.gp.astype(str); L['mo']=L.ym.astype(str); L['cm']=L.ym.dt.month
 L=L[~((L.ym>='2020-03-01')&(L.ym<='2021-03-01'))]
